@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.1
+.VERSION 1.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -55,7 +55,7 @@ For more information, please refer to <http://unlicense.org/>
 
 .DESCRIPTION
 Remotely control or set paramaters for a PC using a REST API http service. Install in admin mode via command:
-iex ((New-Object System.Net.WebClient).DownloadString(''))
+iex ((New-Object System.Net.WebClient).DownloadString('https://github.com/UPAInc/Get-PCTasks/blob/8688a16890d27ff211ff762fa3e7ed65adda86fa/get-pctasks.ps1'))
  
 .PARAMETER CnCURI
 Specify remote http server to receive commands from.
