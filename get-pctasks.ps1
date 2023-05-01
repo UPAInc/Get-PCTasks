@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.0
+.VERSION 1.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -211,7 +211,7 @@ function schtask($URL) {
 	$querytask=& $env:windir\system32\schtasks.exe /query /tn $script
 	IF ($querytask) {
 		#Make sure the task is enabled.
-		$env:windir\system32\schtasks.exe /change /enable /TN $script
+		& $env:windir\system32\schtasks.exe /change /enable /TN $script
 	} ELSE {
 	& $env:windir\system32\schtasks.exe /s "localhost" /ru "SYSTEM" /Create /SC "DAILY" /RI 15 /ST 08:00 /TN "$script" /TR "powershell.exe -file $scriptDir\$script.ps1 -CnCURI $CnCURI" /RL HIGHEST /HRESULT
 	}
@@ -273,8 +273,16 @@ function RunTask() {
 
 #Run functions in this order
 Install-Update
+
+#Check dirs in case install fails
+if (!(test-path $TempDir)) {mkdir $TempDir}
+if (!(test-path $BinDir)) {mkdir $BinDir}
+
+#Check for scheduled task, enable or create.
 schtask -url $CnCURI
-$WebTask=CheckWebTasks #Returns hash of current tasks for file comparison
+
+#Gets tasks for this PC and returns hash of current task for file comparison
+$WebTask=CheckWebTasks
 
 #Get tasks saved on disk
 $tasks=@()
