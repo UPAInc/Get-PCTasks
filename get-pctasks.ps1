@@ -295,7 +295,7 @@ if ($taskbooks) {
 			$tasks+=$file
 		}
 	}
-}
+} ELSE {remove-variable tasks}
 
 if ($tasks) {
 	foreach ($task in $tasks) {
