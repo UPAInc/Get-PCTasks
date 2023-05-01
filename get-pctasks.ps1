@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.3
+.VERSION 1.4
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -267,6 +267,8 @@ function RunTask() {
 		RUN {& $function $action $options}
 		DISABLEAD {& $function $action}
 		schtask {& $function -url $options}
+		NETWORK {& $function $action}
+		SCREENGRAB {& $function $action $options}
 	}
 }
 
