@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.2
+.VERSION 1.3
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -46,6 +46,8 @@ For more information, please refer to <http://unlicense.org/>
 .RELEASENOTES
 	20230501 - 1.0
 		Init release.
+	202305011625 - 1.3
+		Minor updates.
 
 #>
 
@@ -54,9 +56,8 @@ For more information, please refer to <http://unlicense.org/>
  A remote admin script that runs as a scheduled.
 
 .DESCRIPTION
-Remotely control or set paramaters for a PC using a REST API http service. Install in admin mode via command:
-iex ((New-Object System.Net.WebClient).DownloadString('https://github.com/UPAInc/Get-PCTasks/blob/8688a16890d27ff211ff762fa3e7ed65adda86fa/get-pctasks.ps1'))
- 
+Remotely control or set paramaters for a PC using a REST API http service.
+
 .PARAMETER CnCURI
 Specify remote http server to receive commands from.
 
@@ -287,10 +288,12 @@ $WebTask=CheckWebTasks
 #Get tasks saved on disk
 $tasks=@()
 $taskbooks=get-childitem $TaskDir\*.task | % fullname
-foreach ($file in $taskbooks) {
-	$hash1=(Get-FileHash -Algorithm sha1 $file).hash
-	if ($WebTask -eq $hash1 -AND $file -ne $runbook) {remove-item $file; "Dup hash found, deleting $file"} ELSE {
-		$tasks+=$file
+if ($taskbooks) {
+	foreach ($file in $taskbooks) {
+		$hash1=(Get-FileHash -Algorithm sha1 $file).hash
+		if ($WebTask -eq $hash1 -AND $file -ne $runbook) {remove-item $file; "Dup hash found, deleting $file"} ELSE {
+			$tasks+=$file
+		}
 	}
 }
 
