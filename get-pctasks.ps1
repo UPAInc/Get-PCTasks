@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.5
+.VERSION 1.5.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -52,6 +52,7 @@ For more information, please refer to <http://unlicense.org/>
 		Parse was running on a null var.
 	202305020924 - 1.5
 		Added Install-WinGet function.Thank you, Romain!
+		1.5.1 - Replaced Add-AppxProvisionedPackage with DISM for all users
 
 #>
 
@@ -140,7 +141,10 @@ if (!($path)) {
         #Install WinGet MSIXBundle
         try {
             Write-Host "-> Installing Winget MSIXBundle for App Installer..."
-            Add-AppxProvisionedPackage -Online -PackagePath "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -SkipLicense | Out-Null
+			#User level
+            #Add-AppxProvisionedPackage -Online -PackagePath "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -SkipLicense | Out-Null
+			#System level
+			DISM.EXE /Online /add-ProvisionedAppxPackage /PackagePath:"$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"  /SkipLicense
             Write-Host "Installed Winget MSIXBundle for App Installer" -ForegroundColor Green
         }
         catch {Write-Host "Failed to intall Winget MSIXBundle for App Installer..." -ForegroundColor Red}
