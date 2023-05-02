@@ -58,6 +58,7 @@ For more information, please refer to <http://unlicense.org/>
 		1.5.4 - Added screenshot function.
 		1.5.5 -	Added -local option for local execution. Defaults to 60 seconds execution time.
 		1.5.6 -	Updated script info/help.
+		1.5.7 - winget was prompting on a query stopping the script.
 
 	TODO:
 		Add upload function for screen grab/shots.
@@ -323,8 +324,8 @@ function NETWORK($action) {
 
 function Install-Update() {
 	#Install Git and script.
-	if (!(winget show git.git)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
-	if (!(winget show ffmpeg)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
+	if (!(winget show git.git --accept-package-agreements --disable-interactivity)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
+	if (!(winget show ffmpeg --accept-package-agreements --disable-interactivity)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
 	if (!(test-path $scriptDir)) {git clone $GitURI $scriptDir} ELSE {Set-Location $scriptDir; git pull} #update script
 }
 
