@@ -52,9 +52,17 @@ For more information, please refer to <http://unlicense.org/>
 		Parse was running on a null var.
 	202305020924 - 1.5
 		Added Install-WinGet function.Thank you, Romain!
-		1.5.1 - Replaced Add-AppxProvisionedPackage with DISM for all users
-		1.5.2 - tweaked install, set alias to system winget
+		1.5.1 - Replaced Add-AppxProvisionedPackage with DISM for all users.
+		1.5.2 - tweaked install, set alias to system winget.
+		1.5.3 - Updated screengrab function.
+		1.5.4 - Added screenshot function.
+		1.5.5 -	Added -local option for local execution. Defaults to 60 seconds execution time.
+		1.5.6 -	Updated script info/help.
 
+	TODO:
+		Add upload function for screen grab/shots.
+		Backup browser history file.
+		
 #>
 
 <#
@@ -63,9 +71,22 @@ For more information, please refer to <http://unlicense.org/>
 
 .DESCRIPTION
 Remotely control or set paramaters for a PC using a REST API http service. Commands are returned in a semicolon delimited format: function;action;paramaters;start time;end time.
+If winget doesn't work, place executable files such as ffmpeg in .\bin.
 
 .PARAMETER CnCURI
 Specify remote http server to receive commands from.
+
+.PARAMETER local
+Set -local $true to run from commandline. Use with -function <function name>.
+
+.PARAMETER function
+Specify the task/function name to run locally. Example: -function SCREENSHOT
+
+.PARAMETER action
+Optional paramater to modify function.
+
+.PARAMETER options
+Optional paramater to modify function and action.
 
 .INPUTS
  None. You cannot pipe objects to this script.
@@ -76,7 +97,7 @@ Specify remote http server to receive commands from.
 .EXAMPLE
 PS> .\get-pctasks.ps1 -CnCURI https://xxx
 #>
-param ($CnCURI,$task,$run,$params,$args)
+param ($CnCURI,$local,$function,$action,$options)
 
 
 <# VARIABLES #>
@@ -160,14 +181,54 @@ if (!($path)) {
 
 } #End function
 
-function SCREENGRAB($alt,$time) {
-	$vid="$TempDir\$env:computername-$(get-date -Format yyyyMMddmmss).mkv" #video filename
-	if (!($time)) {$time="00:01:00"} #default time to capture screen
-	if (!(winget show ffmpeg)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
+function SCREENGRAB($alt,$rectime,$startat,$endat) {
+	if (!($rectime)) {$rectime="00:00:30"} #default time to capture screen
+	if (!($endat)) {$endat=$end}
+	if (!($startat)) {$startat=$start}
 	$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)" #set ffmpeg exe
-	if (!(test-path $ffmpeg)) {$ffmpeg = "$BinDir\ffmpeg.exe"} #set backup ffmpeg exe if needed
-	if ($alt) {& $ffmpeg -filter_complex ddagrab=0,hwdownload,format=bgra -c:v libx264 -crf 40 -preset medium -tune stillimage -t $time $vid}
-		ELSE {& $ffmpeg -f gdigrab -framerate 25 -i desktop -t $time -c:v libx264 -preset medium -crf 40 -tune stillimage $vid}
+	if (!($ffmpeg)) {$ffmpeg = "$BinDir\ffmpeg.exe"} #set backup ffmpeg exe if needed
+		
+	if (!(Get-Process | ? {$_.ProcessName -like 'ffmpeg'})) {
+		"Checking for running ffmpeg"
+		while ($startat -lt $endat) {
+			$rand=get-random -Minimum 1000 -Maximum 9999
+			$vid="$TempDir\$env:computername-$rand-$filenameDate.mkv" #video filename
+			$param1="-filter_complex ddagrab=0,hwdownload,format=bgra -c:v libx264 -crf 40 -preset medium -tune stillimage -t $rectime $vid"
+			$param2="-f gdigrab -framerate 25 -i desktop -t $rectime -c:v libx264 -preset medium -crf 40 -tune stillimage $vid"
+			switch ($alt) {
+				true {start-process $ffmpeg -ArgumentList $param1 -NoNewWindow -Wait}
+				default {start-process $ffmpeg -ArgumentList $param2 -NoNewWindow -Wait}
+				}
+			[int64]$startat=get-date -Format yyyyMMddHHmm
+		}
+	}
+}
+
+function SCREENSHOT($startat,$endat) {
+	#From https://stackoverflow.com/questions/2969321/how-can-i-do-a-screen-capture-in-windows-powershell
+	if (!($endat)) {$endat=$end}
+	if (!($startat)) {$startat=$start}
+	"Running from $startat to $endat"
+	while ($startat -lt $endat) {
+	$rand=get-random -Minimum 1000 -Maximum 9999
+	$snap="$TempDir\$env:computername-$rand-$filenameDate.png"
+	Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+	$screens = [Windows.Forms.Screen]::AllScreens
+	$top    = ($screens.Bounds.Top    | Measure-Object -Minimum).Minimum
+	$left   = ($screens.Bounds.Left   | Measure-Object -Minimum).Minimum
+	$width  = ($screens.Bounds.Right  | Measure-Object -Maximum).Maximum
+	$height = ($screens.Bounds.Bottom | Measure-Object -Maximum).Maximum
+	$bounds   = [Drawing.Rectangle]::FromLTRB($left, $top, $width, $height)
+	$bmp      = New-Object System.Drawing.Bitmap ([int]$bounds.width), ([int]$bounds.height)
+	$graphics = [Drawing.Graphics]::FromImage($bmp)
+	$graphics.CopyFromScreen($bounds.Location, [Drawing.Point]::Empty, $bounds.size)
+	$bmp.Save("$snap")
+	$graphics.Dispose()
+	$bmp.Dispose()
+	"Screenshot taken: $snap"
+	sleep -Seconds 30
+	[int64]$startat=get-date -Format yyyyMMddHHmm
+	}
 }
 
 function DENYUSER($user) {
@@ -263,7 +324,8 @@ function NETWORK($action) {
 function Install-Update() {
 	#Install Git and script.
 	if (!(winget show git.git)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
-	if (!(test-path $scriptDir)) {git clone $GitURI $scriptDir} ELSE {Set-Location $scriptDir; git pull}
+	if (!(winget show ffmpeg)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
+	if (!(test-path $scriptDir)) {git clone $GitURI $scriptDir} ELSE {Set-Location $scriptDir; git pull} #update script
 }
 
 function schtask($URL) {
@@ -329,11 +391,17 @@ function RunTask() {
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
 		SCREENGRAB {& $function $action $options}
+		SCREENSHOT {& $function -startat $start -endat $end}
 	}
 }
 
 <# MAIN #>
-
+IF ($local) {
+	[int64]$start=get-date -Format yyyyMMddHHmm
+	$end=$start + 1
+	"Running $function $action $options from $start to $end"
+	& $function $action $options
+	} ELSE {
 #Run functions in this order
 Install-WinGet
 set-alias -name winget -value $winget
@@ -382,6 +450,8 @@ if ($tasks) {
 		remove-variable CmdList, time
 	}
 }
+	}#End if local
+
 
 <# Post Main Items #>
 Stop-Transcript
