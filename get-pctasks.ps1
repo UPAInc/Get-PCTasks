@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.5.1
+.VERSION 1.5.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -53,6 +53,7 @@ For more information, please refer to <http://unlicense.org/>
 	202305020924 - 1.5
 		Added Install-WinGet function.Thank you, Romain!
 		1.5.1 - Replaced Add-AppxProvisionedPackage with DISM for all users
+		1.5.2 - tweaked install, set alias to system winget
 
 #>
 
@@ -98,6 +99,7 @@ $head = @{
 	'name'="$($env:computername.ToUpper())"
 	}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
+$Winget = gci "C:\Program Files\WindowsApps" -Recurse -File | ? {$_.name -like "AppInstallerCLI.exe" -or $_.name -like "winget.exe"} | select -ExpandProperty fullname
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -126,12 +128,14 @@ if (!($path)) {
 	Remove-Item $Installer -ErrorAction Ignore
 	Write-host "-> MS Visual C++ 2015-2022 installed successfully" -ForegroundColor Green
     Write-Host "`nChecking if Winget is installed" -ForegroundColor Yellow
+} #End if path
 
     #Check Package Install
     $TestWinGet = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq "Microsoft.DesktopAppInstaller" }
 
     #Current: v1.4.10173 = 1.19.10173.0 = 2023.118.406.0
-    If ([Version]$TestWinGet.Version -ge "2023.118.406.0") {Write-Host "WinGet is Installed" -ForegroundColor Green} Else {
+	#old code: [Version]$TestWinGet.Version -ge "2023.118.406.0"
+    If (test-path $winget) {Write-Host "WinGet is Installed" -ForegroundColor Green} Else {
         #Download WinGet MSIXBundle
         Write-Host "-> Not installed. Downloading WinGet..."
         $WinGetURL = "https://github.com/microsoft/winget-cli/releases/download/v1.4.10173/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
@@ -152,7 +156,8 @@ if (!($path)) {
         #Remove WinGet MSIXBundle
         Remove-Item -Path "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -Force -ErrorAction Continue
     }
-} #End if path
+	
+
 } #End function
 
 function SCREENGRAB($alt,$time) {
@@ -331,6 +336,7 @@ function RunTask() {
 
 #Run functions in this order
 Install-WinGet
+set-alias -name winget -value $winget
 Install-Update
 
 #Check dirs in case install fails
