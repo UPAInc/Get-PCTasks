@@ -65,7 +65,7 @@ For more information, please refer to <http://unlicense.org/>
 				Added a check/set for user permission to the .\temp and task folder.
 				Added a second task imported from temp xml file. This runs as current user for screengrab.
 				Screen grab now looks at local user and if system, start the task "Assist". If it is not system, it will run screengrab.
-
+		1.5.9 - Changed $env:username to whoami. Was showing pc name.
 	TODO:
 		Add upload function for screen grab/shots.
 		Backup browser history file.
@@ -423,7 +423,8 @@ function RunTask() {
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
 		SCREENGRAB {
-			if ($env:username -match "system") {
+			$who=whoami
+			if ($who -match "system") {
 				#start helper task
 				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
 				} ELSE {
