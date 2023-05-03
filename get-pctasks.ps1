@@ -345,7 +345,7 @@ function Install-Update() {
 	
 	#Grant users write access to temp folder.
 	$aclCheck=Get-Acl -Path "C:\ProgramData\upa\Get-PCTasks\temp" | ? {$_.AccessToString -like '*Users Allow  Write*'}
-	if (!($aclCheck) {
+	if (!($aclCheck)) {
 	$NewAcl = Get-Acl -Path "C:\users"
 	$isProtected = $true
 	$preserveInheritance = $true
