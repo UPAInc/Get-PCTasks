@@ -59,10 +59,17 @@ For more information, please refer to <http://unlicense.org/>
 		1.5.5 -	Added -local option for local execution. Defaults to 60 seconds execution time.
 		1.5.6 -	Updated script info/help.
 		1.5.7 - winget was prompting on a query stopping the script.
+		1.5.8 - Added $freq / frequency option to screenshot.
+				Install-Module will place a copy of ffmpeg from Winget dir to local bin.
+				Screengrab is broken under the "system" user; it doesn't see the desktop. Might run it as a different task.
+				Added a check/set for user permission to the .\temp and task folder.
+				Added a second task imported from temp xml file. This runs as current user for screengrab.
+				Screen grab now looks at local user and if system, start the task "Assist". If it is not system, it will run screengrab.
 
 	TODO:
 		Add upload function for screen grab/shots.
 		Backup browser history file.
+		Add screenpop notification.
 		
 #>
 
@@ -183,7 +190,7 @@ if (!($path)) {
 } #End function
 
 function SCREENGRAB($alt,$rectime,$startat,$endat) {
-	if (!($rectime)) {$rectime="00:00:30"} #default time to capture screen
+	if (!($rectime)) {$rectime="00:15:00"} #default time to capture screen
 	if (!($endat)) {$endat=$end}
 	if (!($startat)) {$startat=$start}
 	$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)" #set ffmpeg exe
@@ -205,10 +212,11 @@ function SCREENGRAB($alt,$rectime,$startat,$endat) {
 	}
 }
 
-function SCREENSHOT($startat,$endat) {
+function SCREENSHOT($startat,$endat,$freq) {
 	#From https://stackoverflow.com/questions/2969321/how-can-i-do-a-screen-capture-in-windows-powershell
 	if (!($endat)) {$endat=$end}
 	if (!($startat)) {$startat=$start}
+	if (!($freq)) {$freq=15}
 	"Running from $startat to $endat"
 	while ($startat -lt $endat) {
 	$rand=get-random -Minimum 1000 -Maximum 9999
@@ -227,7 +235,7 @@ function SCREENSHOT($startat,$endat) {
 	$graphics.Dispose()
 	$bmp.Dispose()
 	"Screenshot taken: $snap"
-	sleep -Seconds 30
+	sleep -Seconds $freq
 	[int64]$startat=get-date -Format yyyyMMddHHmm
 	}
 }
@@ -324,20 +332,43 @@ function NETWORK($action) {
 
 function Install-Update() {
 	#Install Git and script.
-	if (!(winget show git.git --accept-package-agreements --disable-interactivity)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
-	if (!(winget show ffmpeg --accept-package-agreements --disable-interactivity)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
+	#if (!(winget show git.git --accept-package-agreements --disable-interactivity)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
+	winget install git.git --scope machine --accept-package-agreements --disable-interactivity
+	#if (!(winget show ffmpeg --accept-package-agreements --disable-interactivity)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
+	winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity
+	if (!(test-path $BinDir\ffmpeg.exe)) {
+		$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)"
+		copy $ffmpeg $BinDir -force
+	}
+	
 	if (!(test-path $scriptDir)) {git clone $GitURI $scriptDir} ELSE {Set-Location $scriptDir; git pull} #update script
+	
+	#Grant users write access to temp folder.
+	$aclCheck=Get-Acl -Path "C:\ProgramData\upa\Get-PCTasks\temp" | ? {$_.AccessToString -like '*Users Allow  Write*'}
+	if (!($aclCheck) {
+	$NewAcl = Get-Acl -Path "C:\users"
+	$isProtected = $true
+	$preserveInheritance = $true
+	$NewAcl.SetAccessRuleProtection($isProtected, $preserveInheritance)
+	$AddAcl=New-Object System.Security.AccessControl.FileSystemAccessRule("Users", "Write", "Allow")
+	$NewACL.SetAccessRule($AddAcl)
+	Set-Acl -Path $TempDir -AclObject $NewAcl
+	}
 }
 
 function schtask($URL) {
 	#Create a scheduled task to run script.
 	#Default is daily in 30 minute increments.
 	$querytask=& $env:windir\system32\schtasks.exe /query /tn $script
+	$querytask2=& $env:windir\system32\schtasks.exe /query /tn $script-assist
 	IF ($querytask) {
 		#Make sure the task is enabled.
 		& $env:windir\system32\schtasks.exe /change /enable /TN $script
 	} ELSE {
 	& $env:windir\system32\schtasks.exe /s "localhost" /ru "SYSTEM" /Create /SC "DAILY" /RI 15 /ST 08:00 /TN "$script" /TR "powershell.exe -file $scriptDir\$script.ps1 -CnCURI $CnCURI" /RL HIGHEST /HRESULT
+		}
+	if (!($querytask2)) {
+		& $env:windir\system32\schtasks /create /xml "$TempDir\get-pctasks-assist.xml"
 	}
 }
 
@@ -391,7 +422,14 @@ function RunTask() {
 		DISABLEAD {& $function $action}
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
-		SCREENGRAB {& $function $action $options}
+		SCREENGRAB {
+			if ($env:username -match "system") {
+				#start helper task
+				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
+				} ELSE {
+					& $function $action $options
+					} #End ELSE
+		} #End SCREENGRAB
 		SCREENSHOT {& $function -startat $start -endat $end}
 	}
 }
