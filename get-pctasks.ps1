@@ -66,10 +66,16 @@ For more information, please refer to <http://unlicense.org/>
 				Added a second task imported from temp xml file. This runs as current user for screengrab.
 				Screen grab now looks at local user and if system, start the task "Assist". If it is not system, it will run screengrab.
 		1.5.9 - Changed $env:username to whoami. Was showing pc name.
+	202305040930 - 1.6
+		Installing BurntToast for simple notifications.
+		Added IPv4 Addresses to script for logging.
+		Added sending log to results web server.
+		Changed scheduled task to import a file instead of cmd line.
+		
 	TODO:
 		Add upload function for screen grab/shots.
 		Backup browser history file.
-		Add screenpop notification.
+		Format parmas properly.
 		
 #>
 
@@ -105,12 +111,13 @@ Optional paramater to modify function and action.
 .EXAMPLE
 PS> .\get-pctasks.ps1 -CnCURI https://xxx
 #>
-param ($CnCURI,$local,$function,$action,$options)
+param ($CnCURI,$ResultsURI,$local,$function,$action,$options)
 
 
 <# VARIABLES #>
 if (!($CnCURI)) {$CnCURI="https://eoj5o3nkdop6ami.m.pipedream.net"} #Override commandline switch
 $GitURI="https://github.com/UPAInc/Get-PCTasks"
+if (!($ResultsURI)) {$ResultsURI="https://eoutai8j6ad3igb.m.pipedream.net"}
 
 <# SCRIPT VARIABLES #>
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
@@ -240,8 +247,12 @@ function SCREENSHOT($startat,$endat,$freq) {
 	}
 }
 
-function DENYUSER($user) {
-	& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u "$user"
+function DENYUSER() {
+	<# USAGE: denyuser "domain\username" or local accounts "$env:computername\username" 
+		Running locally: .\get-pctasks.ps1 -local $true -function denyuser -options "domain\username"
+	#>
+	
+	& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options
 	}
 	
 function DISABLEAD($mode) {
@@ -332,6 +343,10 @@ function NETWORK($action) {
 
 function Install-Update() {
 	#Install Git and script.
+	
+	#Make sure Nuget is working
+	if ( -not ( Get-PackageProvider -ListAvailable | Where-Object Name -eq "Nuget" ) ) {Install-PackageProvider "Nuget" -Force -Scope AllUsers -Confirm:$false}
+	
 	#if (!(winget show git.git --accept-package-agreements --disable-interactivity)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
 	winget install git.git --scope machine --accept-package-agreements --disable-interactivity
 	#if (!(winget show ffmpeg --accept-package-agreements --disable-interactivity)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
@@ -352,8 +367,27 @@ function Install-Update() {
 	$NewAcl.SetAccessRuleProtection($isProtected, $preserveInheritance)
 	$AddAcl=New-Object System.Security.AccessControl.FileSystemAccessRule("Users", "Write", "Allow")
 	$NewACL.SetAccessRule($AddAcl)
-	Set-Acl -Path $TempDir -AclObject $NewAcl
+	Set-Acl -Path $TempDir -AclObject $
 	}
+	
+	#Install mod for notifications. 1.6
+	$bt=Get-Module -ListAvailable | ? {$_.name -match "BurntToast"}
+	if (!($bt)) {install-module BurntToast -Scope AllUsers -Confirm:$false -force}
+	
+}
+
+function notify($action) {
+	import-module BurntToast -force
+	$toastParams = @{
+    Text = "$options"
+    Header = (New-BTHeader -Id 1 -Title "Notification from UPA Support")
+	Applogo = "$BinDir\logosmall.png"
+	SnoozeAndDismiss = $true
+	Sound = "SMS"
+	}
+	
+	New-BurntToastNotification @toastParams
+			
 }
 
 function schtask($URL) {
@@ -365,7 +399,7 @@ function schtask($URL) {
 		#Make sure the task is enabled.
 		& $env:windir\system32\schtasks.exe /change /enable /TN $script
 	} ELSE {
-	& $env:windir\system32\schtasks.exe /s "localhost" /ru "SYSTEM" /Create /SC "DAILY" /RI 15 /ST 08:00 /TN "$script" /TR "powershell.exe -file $scriptDir\$script.ps1 -CnCURI $CnCURI" /RL HIGHEST /HRESULT
+	& $env:windir\system32\schtasks.exe /create /xml "$TempDir\get-pctasks.xml"
 		}
 	if (!($querytask2)) {
 		& $env:windir\system32\schtasks /create /xml "$TempDir\get-pctasks-assist.xml"
@@ -414,28 +448,39 @@ function CheckWebTasks() {
 }
 
 function RunTask() {
+	#For commands that must run as the user and not system
+	$who=whoami
+	function RTUserCheck() {
+		if ($who -match "system") {
+				#start helper task
+				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
+				} ELSE {
+					switch ($function) {
+						notify {& $function -options $options}
+						SCREENGRAB {& $function $action $options}
+					}
+					} #End ELSE
+	}
+		
 	switch ($function) {
 		ECHOTEST {& $function $CmdList}
 		LOCKDESKTOP {& $function}
 		DOWNLOAD {& $function $action $options}
 		RUN {& $function $action $options}
 		DISABLEAD {& $function $action}
+		DENYUSER {& $function -options $options}
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
-		SCREENGRAB {
-			$who=whoami
-			if ($who -match "system") {
-				#start helper task
-				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
-				} ELSE {
-					& $function $action $options
-					} #End ELSE
-		} #End SCREENGRAB
+		SCREENGRAB {RTUserCheck}
 		SCREENSHOT {& $function -startat $start -endat $end}
+		notify {RTUserCheck}
 	}
 }
 
 <# MAIN #>
+Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
+
+
 IF ($local) {
 	[int64]$start=get-date -Format yyyyMMddHHmm
 	$end=$start + 1
@@ -495,3 +540,6 @@ if ($tasks) {
 
 <# Post Main Items #>
 Stop-Transcript
+
+$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
+Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI
