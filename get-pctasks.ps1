@@ -81,6 +81,8 @@ For more information, please refer to <http://unlicense.org/>
 		1.6.4 - Set the log upload not to run when local is called.
 				Updated the RunTasks to correctly call specific parameters.
 				WindowsUpdate wasn't loading the module.
+		1.6.5 - Added lock desktop to denyuser
+				Added false option to undo the user deny.
 		
 	TODO:
 		Add upload function for screen grab/shots.
@@ -262,12 +264,17 @@ function SCREENSHOT($startat,$endat,$freq) {
 	}
 }
 
-function DENYUSER() {
+function DENYUSER($action) {
 	<# USAGE: denyuser "domain\username" or local accounts "$env:computername\username" 
 		Running locally: .\get-pctasks.ps1 -local $true -function denyuser -options "domain\username"
 	#>
 	
-	& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options
+	switch ($action) {
+		false {& $BinDir\ntrights.exe -r SeDenyInteractiveLogonRight -u $options}
+		default {& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options}
+	}
+	
+	LOCKDESKTOP
 	}
 	
 function DISABLEAD($mode,$reboot) {
