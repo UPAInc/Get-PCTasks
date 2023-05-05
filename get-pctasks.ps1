@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.6.1
+.VERSION 1.6.4
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -78,6 +78,9 @@ For more information, please refer to <http://unlicense.org/>
 		Started function to upload temp items (incomplete).
 		1.6.2 - Added reboot option to DISABLEAD function.
 		1.6.3 - Added power function to remote reboot or power off.
+		1.6.4 - Set the log upload not to run when local is called.
+				Updated the RunTasks to correctly call specific parameters.
+				WindowsUpdate wasn't loading the module.
 		
 	TODO:
 		Add upload function for screen grab/shots.
@@ -332,9 +335,9 @@ function DOWNLOAD($type,$url,$file) {
 	switch ($type) {
 		bits {
 			Import-Module BitsTransfer
-			Start-BitsTransfer -Source $url -Destination $path_to_file
+			Start-BitsTransfer -Source $url -Destination $TempDir
 		}
-		default {Invoke-WebRequest $url -OutFile $file}
+		default {Invoke-WebRequest $url -OutFile $TempDir\$file}
 	}
 }
 
@@ -421,9 +424,7 @@ function schtask($URL) {
 
 function WindowsUpdate() {
 	$module = "PSWindowsUpdate"
-	$WU = "Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreUserInput -AutoReboot -verbose *>&1 | Out-File $LogDir\PSWindowsUpdate.log"
-	if (Get-Module -ListAvailable | ? {$_.name -match $module}) {& $WU	} ELSE 
-	{
+	if (!(Get-Module -ListAvailable | ? {$_.name -match $module})) {
 		#Check
 		Unregister-PSRepository -Name PSGallery
 		sleep 2
@@ -434,8 +435,9 @@ function WindowsUpdate() {
 		Install-Module -Name PSWindowsUpdate
 		Install-PackageProvider -Name NuGet
 		Install-Module $module -force
-		& $WU
 	}
+	import-module $module -force
+	Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreUserInput -AutoReboot -verbose *>&1 | Out-File $LogDir\PSWindowsUpdate.log
 }
 
 function CheckWebTasks() {
@@ -471,7 +473,7 @@ function RunTask() {
 				} ELSE {
 					switch ($function) {
 						notify {& $function -options $options}
-						SCREENGRAB {& $function $action $options}
+						SCREENGRAB {& $function -alt $action -rectime $options}
 					}
 					} #End ELSE
 	}
@@ -479,17 +481,18 @@ function RunTask() {
 	switch ($function) {
 		ECHOTEST {& $function $CmdList}
 		LOCKDESKTOP {& $function}
-		DOWNLOAD {& $function $action $options}
-		RUN {& $function $action $options}
-		DISABLEAD {& $function $action}
+		DOWNLOAD {& $function -type $action -url $options}
+		RUN {& $function -type $action -run $options}
+		DISABLEAD {& $function -mode $action -reboot $options}
 		DENYUSER {& $function -options $options}
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
 		SCREENGRAB {RTUserCheck}
-		SCREENSHOT {& $function -startat $start -endat $end}
+		SCREENSHOT {& $function -startat $start -endat $end -freq $options}
 		notify {RTUserCheck}
 		power {& $function -type $action}
 		sendtemp {& $function -type $action}
+		WindowsUpdate {& $function}
 	}
 }
 
@@ -573,5 +576,9 @@ if ($tasks) {
 <# Post Main Items #>
 Stop-Transcript
 
-$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
-Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI
+if (!($local)) {
+	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
+	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI
+}
+
+#EOF
