@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.5.2
+.VERSION 1.6.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -71,11 +71,16 @@ For more information, please refer to <http://unlicense.org/>
 		Added IPv4 Addresses to script for logging.
 		Added sending log to results web server.
 		Changed scheduled task to import a file instead of cmd line.
-		
+	202305050931 - 1.6.1
+		Task sched name error, added tn option to import xml.
+		Updated params format.
+		Added param for remote file server, checks if its alive.
+		Started function to upload temp items (incomplete).
+				
 	TODO:
 		Add upload function for screen grab/shots.
 		Backup browser history file.
-		Format parmas properly.
+		
 		
 #>
 
@@ -111,13 +116,17 @@ Optional paramater to modify function and action.
 .EXAMPLE
 PS> .\get-pctasks.ps1 -CnCURI https://xxx
 #>
-param ($CnCURI,$ResultsURI,$local,$function,$action,$options)
-
-
-<# VARIABLES #>
-if (!($CnCURI)) {$CnCURI="https://eoj5o3nkdop6ami.m.pipedream.net"} #Override commandline switch
-$GitURI="https://github.com/UPAInc/Get-PCTasks"
-if (!($ResultsURI)) {$ResultsURI="https://eoutai8j6ad3igb.m.pipedream.net"}
+[CmdletBinding()]
+param(
+	[Parameter(Mandatory = $False)] [String] $GitURI = "https://github.com/UPAInc/Get-PCTasks", 
+	[Parameter(Mandatory = $False)] [String] $CnCURI = "https://eoj5o3nkdop6ami.m.pipedream.net", 
+	[Parameter(Mandatory = $False)] [String] $ResultsURI = "https://eoutai8j6ad3igb.m.pipedream.net",
+	[Parameter(Mandatory = $False)] [String] $RemoteFS = "172.16.133.45",
+	[Parameter(Mandatory = $False)] [Switch] $local = $false,
+	[Parameter(Mandatory = $False)] [String] $function,
+	[Parameter(Mandatory = $False)] [String] $action,
+	[Parameter(Mandatory = $False)] [String] $options
+)
 
 <# SCRIPT VARIABLES #>
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
@@ -136,6 +145,7 @@ $head = @{
 	}
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
 $Winget = gci "C:\Program Files\WindowsApps" -Recurse -File | ? {$_.name -like "AppInstallerCLI.exe" -or $_.name -like "winget.exe"} | select -ExpandProperty fullname
+$TestFS=IF ($RemoteFS) {Test-Connection $RemoteFS -Count 2 -Delay 2 -Quiet} ELSE {$false} #Check to see if remote fs server is avil.
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -402,7 +412,7 @@ function schtask($URL) {
 	& $env:windir\system32\schtasks.exe /create /xml "$TempDir\get-pctasks.xml"
 		}
 	if (!($querytask2)) {
-		& $env:windir\system32\schtasks /create /xml "$TempDir\get-pctasks-assist.xml"
+		& $env:windir\system32\schtasks.exe /create /tn get-pctasks-assist /xml "$TempDir\get-pctasks-assist.xml"
 	}
 }
 
@@ -448,6 +458,7 @@ function CheckWebTasks() {
 }
 
 function RunTask() {
+	"Running $function $action $options from $start to $end"
 	#For commands that must run as the user and not system
 	$who=whoami
 	function RTUserCheck() {
@@ -477,14 +488,23 @@ function RunTask() {
 	}
 }
 
+function sendtemp($type) {
+	$list=get-childitem $TempDir -Exclude *.xml | % fullname
+	$list+="$LogDir\get-pctasks.log"
+	switch ($type) {
+		http {}
+		smb {}
+	}
+}
+
 <# MAIN #>
 Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
 
 
+#Local execution
 IF ($local) {
 	[int64]$start=get-date -Format yyyyMMddHHmm
 	$end=$start + 1
-	"Running $function $action $options from $start to $end"
 	& $function $action $options
 	} ELSE {
 #Run functions in this order
