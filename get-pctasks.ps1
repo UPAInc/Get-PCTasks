@@ -76,7 +76,9 @@ For more information, please refer to <http://unlicense.org/>
 		Updated params format.
 		Added param for remote file server, checks if its alive.
 		Started function to upload temp items (incomplete).
-				
+		1.6.2 - Added reboot option to DISABLEAD function.
+		1.6.3 - Added power function to remote reboot or power off.
+		
 	TODO:
 		Add upload function for screen grab/shots.
 		Backup browser history file.
@@ -265,7 +267,7 @@ function DENYUSER() {
 	& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options
 	}
 	
-function DISABLEAD($mode) {
+function DISABLEAD($mode,$reboot) {
 	$path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 	$name="CachedLogonsCount"
 	
@@ -287,6 +289,7 @@ function DISABLEAD($mode) {
 		disable {$value="10" ; updatereg}
 	}
 	
+	if ($reboot) {Restart-Computer -ComputerName localhost -force}
 }
 
 function RUN($type,$run,$options) {
@@ -485,6 +488,8 @@ function RunTask() {
 		SCREENGRAB {RTUserCheck}
 		SCREENSHOT {& $function -startat $start -endat $end}
 		notify {RTUserCheck}
+		power {& $function -type $action}
+		sendtemp {& $function -type $action}
 	}
 }
 
@@ -494,6 +499,13 @@ function sendtemp($type) {
 	switch ($type) {
 		http {}
 		smb {}
+	}
+}
+
+function power($type) {
+	switch ($type) {
+		off {Stop-Computer -ComputerName localhost -force}
+		reboot {Restart-Computer -ComputerName localhost -force}
 	}
 }
 
