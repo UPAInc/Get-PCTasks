@@ -83,6 +83,8 @@ For more information, please refer to <http://unlicense.org/>
 				WindowsUpdate wasn't loading the module.
 		1.6.5 - Added lock desktop to denyuser
 				Added false option to undo the user deny.
+	202305081131 - 1.6.6
+		Added IE fix.
 		
 	TODO:
 		Add upload function for screen grab/shots.
@@ -153,6 +155,11 @@ $head = @{
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
 $Winget = gci "C:\Program Files\WindowsApps" -Recurse -File | ? {$_.name -like "AppInstallerCLI.exe" -or $_.name -like "winget.exe"} | select -ExpandProperty fullname
 $TestFS=IF ($RemoteFS) {Test-Connection $RemoteFS -Count 2 -Delay 2 -Quiet} ELSE {$false} #Check to see if remote fs server is avil.
+
+#IE Fix
+$keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+if (!(Test-Path $keyPath)) { New-Item $keyPath -Force | Out-Null }
+Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -370,10 +377,13 @@ function Install-Update() {
 	#Make sure Nuget is working
 	if ( -not ( Get-PackageProvider -ListAvailable | Where-Object Name -eq "Nuget" ) ) {Install-PackageProvider "Nuget" -Force -Scope AllUsers -Confirm:$false}
 	
-	#if (!(winget show git.git --accept-package-agreements --disable-interactivity)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
-	winget install git.git --scope machine --accept-package-agreements --disable-interactivity
-	#if (!(winget show ffmpeg --accept-package-agreements --disable-interactivity)) {winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity} #install ffmpeg via winget
-	winget install ffmpeg --scope machine --accept-package-agreements --disable-interactivity
+	
+	$wggit=get-command git
+	if (!($wggit)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
+	
+	$wgff=get-command ffmpeg
+	if (!($wgff)) {winget install ffmpeg --scope machine --accept-package-agreements -h} #install ffmpeg via winget
+	
 	if (!(test-path $BinDir\ffmpeg.exe)) {
 		$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)"
 		copy $ffmpeg $BinDir -force
