@@ -85,14 +85,18 @@ For more information, please refer to <http://unlicense.org/>
 				Added false option to undo the user deny.
 	202305081131 - 1.6.6
 		Added IE fix.
+		Moved new array tasks under next if statement.
+	202305151600 - 2.0
+		Moved functions to their own file and folder in .\functions.
+		Added path for FS share and SendTemp function runs each time.
+		Cleaned up minor bugs and variable updates.
 		
 	TODO:
-		Add upload function for screen grab/shots.
+		Add http upload function for screen grab/shots.
 		Backup browser history file.
 		
 		
 #>
-
 <#
 .SYNOPSIS
  A remote admin script that runs as a scheduled.
@@ -131,6 +135,7 @@ param(
 	[Parameter(Mandatory = $False)] [String] $CnCURI = "https://eoj5o3nkdop6ami.m.pipedream.net", 
 	[Parameter(Mandatory = $False)] [String] $ResultsURI = "https://eoutai8j6ad3igb.m.pipedream.net",
 	[Parameter(Mandatory = $False)] [String] $RemoteFS = "172.16.133.45",
+	[Parameter(Mandatory = $False)] [String] $RemoteFSShare = 'ScriptsUpload$',
 	[Parameter(Mandatory = $False)] [Switch] $local = $false,
 	[Parameter(Mandatory = $False)] [String] $function,
 	[Parameter(Mandatory = $False)] [String] $action,
@@ -138,28 +143,35 @@ param(
 )
 
 <# SCRIPT VARIABLES #>
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8 #Console output encoding
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
+$Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
+$Script:RunDir = $PSScriptRoot #Get the Working Dir
 $BaseDir="$env:programdata\UPA"
 $ScriptDir="$BaseDir\$script"
-$BinDir="$ScriptDir\bin"
-$TempDir="$ScriptDir\Temp"
-$LogDir="$ScriptDir\Log"
+$BinDir="$RunDir\bin"
+$TempDir="$RunDir\Temp"
+$LogDir="$RunDir\Log"
 $log="$LogDir\$script"+".log"
-$TaskDir="$ScriptDir\task"
+$TaskDir="$RunDir\task"
 $filenameDate=get-date -Format yyyyMMddmmss
 $runbook="$TaskDir\$filenameDate.task" #name cannot change per instance
 $head = @{
 	'Content-Type'='application/json'
 	'name'="$($env:computername.ToUpper())"
 	}
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
-$Winget = gci "C:\Program Files\WindowsApps" -Recurse -File | ? {$_.name -like "AppInstallerCLI.exe" -or $_.name -like "winget.exe"} | select -ExpandProperty fullname
-$TestFS=IF ($RemoteFS) {Test-Connection $RemoteFS -Count 2 -Delay 2 -Quiet} ELSE {$false} #Check to see if remote fs server is avil.
 
 #IE Fix
-$keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
-if (!(Test-Path $keyPath)) { New-Item $keyPath -Force | Out-Null }
-Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1
+IF ($IsSystem) {
+	$keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
+} ELSE {
+	$keyPath = 'Registry::HKEY_CURRENT_USER\Software\Policies\Microsoft\Internet Explorer\Main'
+}
+if (!(Test-Path $keyPath)) {
+	New-Item $keyPath -Force | Out-Null 
+	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
+	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -167,232 +179,16 @@ try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely st
 Start-Transcript $log -force
 
 <# FUNCTIONS #>
+Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
 
-function Install-WinGet {
-#from https://github.com/Romanitho/Winget-AutoUpdate/blob/main/Winget-AutoUpdate-Install.ps1
-#Check if Visual C++ 2019 or 2022 installed
-$Visual2019 = "Microsoft Visual C++ 2015-2019 Redistributable*"
-$Visual2022 = "Microsoft Visual C++ 2015-2022 Redistributable*"
-$path = Get-Item HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*, HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object { $_.GetValue("DisplayName") -like $Visual2019 -or $_.GetValue("DisplayName") -like $Visual2022 }
+<# MAIN #>
 
-if (!($path)) {
-	if ((Get-CimInStance Win32_OperatingSystem).OSArchitecture -like "*64*") {$OSArch = "x64"} else {$OSArch = "x86"}
+#Get IP addresses for logging
+Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
 
-	Write-host "-> Downloading VC_redist.$OSArch.exe..."
-	$SourceURL = "https://aka.ms/vs/17/release/VC_redist.$OSArch.exe"
-	$Installer = $WingetUpdatePath + "\VC_redist.$OSArch.exe"
-	$ProgressPreference = 'SilentlyContinue'
-	Invoke-WebRequest $SourceURL -UseBasicParsing -OutFile (New-Item -Path $Installer -Force)
-	Write-host "-> Installing VC_redist.$OSArch.exe..."
-	Start-Process -FilePath $Installer -Args "/quiet /norestart" -Wait
-	Remove-Item $Installer -ErrorAction Ignore
-	Write-host "-> MS Visual C++ 2015-2022 installed successfully" -ForegroundColor Green
-    Write-Host "`nChecking if Winget is installed" -ForegroundColor Yellow
-} #End if path
-
-    #Check Package Install
-    $TestWinGet = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq "Microsoft.DesktopAppInstaller" }
-
-    #Current: v1.4.10173 = 1.19.10173.0 = 2023.118.406.0
-	#old code: [Version]$TestWinGet.Version -ge "2023.118.406.0"
-    If (test-path $winget) {Write-Host "WinGet is Installed" -ForegroundColor Green} Else {
-        #Download WinGet MSIXBundle
-        Write-Host "-> Not installed. Downloading WinGet..."
-        $WinGetURL = "https://github.com/microsoft/winget-cli/releases/download/v1.4.10173/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
-        $WebClient = New-Object System.Net.WebClient
-        $WebClient.DownloadFile($WinGetURL, "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle")
-
-        #Install WinGet MSIXBundle
-        try {
-            Write-Host "-> Installing Winget MSIXBundle for App Installer..."
-			#User level
-            #Add-AppxProvisionedPackage -Online -PackagePath "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -SkipLicense | Out-Null
-			#System level
-			DISM.EXE /Online /add-ProvisionedAppxPackage /PackagePath:"$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"  /SkipLicense
-            Write-Host "Installed Winget MSIXBundle for App Installer" -ForegroundColor Green
-        }
-        catch {Write-Host "Failed to intall Winget MSIXBundle for App Installer..." -ForegroundColor Red}
-
-        #Remove WinGet MSIXBundle
-        Remove-Item -Path "$PSScriptRoot\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle" -Force -ErrorAction Continue
-    }
-	
-
-} #End function
-
-function SCREENGRAB($alt,$rectime,$startat,$endat) {
-	if (!($rectime)) {$rectime="00:15:00"} #default time to capture screen
-	if (!($endat)) {$endat=$end}
-	if (!($startat)) {$startat=$start}
-	$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)" #set ffmpeg exe
-	if (!($ffmpeg)) {$ffmpeg = "$BinDir\ffmpeg.exe"} #set backup ffmpeg exe if needed
-		
-	if (!(Get-Process | ? {$_.ProcessName -like 'ffmpeg'})) {
-		"Checking for running ffmpeg"
-		while ($startat -lt $endat) {
-			$rand=get-random -Minimum 1000 -Maximum 9999
-			$vid="$TempDir\$env:computername-$rand-$filenameDate.mkv" #video filename
-			$param1="-filter_complex ddagrab=0,hwdownload,format=bgra -c:v libx264 -crf 40 -preset medium -tune stillimage -t $rectime $vid"
-			$param2="-f gdigrab -framerate 25 -i desktop -t $rectime -c:v libx264 -preset medium -crf 40 -tune stillimage $vid"
-			switch ($alt) {
-				true {start-process $ffmpeg -ArgumentList $param1 -NoNewWindow -Wait}
-				default {start-process $ffmpeg -ArgumentList $param2 -NoNewWindow -Wait}
-				}
-			[int64]$startat=get-date -Format yyyyMMddHHmm
-		}
-	}
-}
-
-function SCREENSHOT($startat,$endat,$freq) {
-	#From https://stackoverflow.com/questions/2969321/how-can-i-do-a-screen-capture-in-windows-powershell
-	if (!($endat)) {$endat=$end}
-	if (!($startat)) {$startat=$start}
-	if (!($freq)) {$freq=15}
-	"Running from $startat to $endat"
-	while ($startat -lt $endat) {
-	$rand=get-random -Minimum 1000 -Maximum 9999
-	$snap="$TempDir\$env:computername-$rand-$filenameDate.png"
-	Add-Type -AssemblyName System.Windows.Forms,System.Drawing
-	$screens = [Windows.Forms.Screen]::AllScreens
-	$top    = ($screens.Bounds.Top    | Measure-Object -Minimum).Minimum
-	$left   = ($screens.Bounds.Left   | Measure-Object -Minimum).Minimum
-	$width  = ($screens.Bounds.Right  | Measure-Object -Maximum).Maximum
-	$height = ($screens.Bounds.Bottom | Measure-Object -Maximum).Maximum
-	$bounds   = [Drawing.Rectangle]::FromLTRB($left, $top, $width, $height)
-	$bmp      = New-Object System.Drawing.Bitmap ([int]$bounds.width), ([int]$bounds.height)
-	$graphics = [Drawing.Graphics]::FromImage($bmp)
-	$graphics.CopyFromScreen($bounds.Location, [Drawing.Point]::Empty, $bounds.size)
-	$bmp.Save("$snap")
-	$graphics.Dispose()
-	$bmp.Dispose()
-	"Screenshot taken: $snap"
-	sleep -Seconds $freq
-	[int64]$startat=get-date -Format yyyyMMddHHmm
-	}
-}
-
-function DENYUSER($action) {
-	<# USAGE: denyuser "domain\username" or local accounts "$env:computername\username" 
-		Running locally: .\get-pctasks.ps1 -local $true -function denyuser -options "domain\username"
-	#>
-	
-	switch ($action) {
-		false {& $BinDir\ntrights.exe -r SeDenyInteractiveLogonRight -u $options}
-		default {& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options}
-	}
-	
-	LOCKDESKTOP
-	}
-	
-function DISABLEAD($mode,$reboot) {
-	$path="HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
-	$name="CachedLogonsCount"
-	
-	function updatereg() {
-		IF (test-path $path) {
-		"Set and check reg value"
-		set-itemproperty -path $path -name $name -value $value
-		Get-ItemProperty -Path $path | foreach $name
-		} ELSE {
-		"Make key"
-		New-Item -Path "$path" -force
-		New-ItemProperty -Path "$path" -PropertyType 'String' -Name $name -Value $value
-		Get-ItemProperty -Path $path | foreach $name
-		}
-	}
-	
-	switch($mode) {
-		enable {$value="0" ; updatereg}
-		disable {$value="10" ; updatereg}
-	}
-	
-	if ($reboot) {Restart-Computer -ComputerName localhost -force}
-}
-
-function RUN($type,$run,$options) {
-	<#
-	Examples:
-	RUN -type cmd -run dir -options c:\users
-	RUN -type pshell -run dir -options c:\users
-	RUN -type process c:\myapp.exe -options silent
-	#>
-	
-	#Hashtable for start-process
-	$syntax=@{
-		NoNewWindow=$true
-		wait=$true
-		}
-	
-	#Add arguments to hashtable depending on command
-	if ($type -eq 'cmd') {
-		$cmdarg=@("/c", "$run", "$options")
-		$syntax.add('ArgumentList',"$cmdarg")
-		$syntax.add('FilePath','C:\Windows\System32\cmd.exe')
-		} ELSE {
-			$cmdarg=@("$run", "$options")
-			$syntax.add('ArgumentList',"$cmdarg")
-			$syntax.add('FilePath',"$run")
-			}
-	
-	#Execute based on type
-	switch ($type) {
-		pshell {$both="$run $options"; Invoke-Expression -Command $both}
-		process {start-process @syntax}
-		cmd {start-process @syntax}
-	}
-	
-} #End Rund
-
-function UPDATE() {}
-
-function DOWNLOAD($type,$url,$file) {
-	switch ($type) {
-		bits {
-			Import-Module BitsTransfer
-			Start-BitsTransfer -Source $url -Destination $TempDir
-		}
-		default {Invoke-WebRequest $url -OutFile $TempDir\$file}
-	}
-}
-
-function LOCKDESKTOP() {
-	& $ENV:windir\System32\Rundll32.exe user32.dll,LockWorkStation
-	}
-
-function ECHOTEST($stuff) {
-	write-host "You sent the command $($line.name) $stuff"
-}
-
-function NETWORK($action) {
-	#Disable all network adapters.
-	switch ($action) {
-		disable {Get-NetAdapter | Disable-NetAdapter -Confirm:$false}
-		enable {Get-NetAdapter | Enable-NetAdapter -Confirm:$false}
-	}
-}
-
-function Install-Update() {
-	#Install Git and script.
-	
-	#Make sure Nuget is working
-	if ( -not ( Get-PackageProvider -ListAvailable | Where-Object Name -eq "Nuget" ) ) {Install-PackageProvider "Nuget" -Force -Scope AllUsers -Confirm:$false}
-	
-	
-	$wggit=get-command git
-	if (!($wggit)) {winget install git.git --scope machine --accept-package-agreements --disable-interactivity} #install git via winget
-	
-	$wgff=get-command ffmpeg
-	if (!($wgff)) {winget install ffmpeg --scope machine --accept-package-agreements -h} #install ffmpeg via winget
-	
-	if (!(test-path $BinDir\ffmpeg.exe)) {
-		$ffmpeg="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)"
-		copy $ffmpeg $BinDir -force
-	}
-	
-	if (!(test-path $scriptDir)) {git clone $GitURI $scriptDir} ELSE {Set-Location $scriptDir; git pull} #update script
-	
-	#Grant users write access to temp folder.
-	$aclCheck=Get-Acl -Path "C:\ProgramData\upa\Get-PCTasks\temp" | ? {$_.AccessToString -like '*Users Allow  Write*'}
+#Grant users write access to temp folder.
+if ($IsSystem) {
+	$aclCheck=Get-Acl -Path .\temp | ? {$_.AccessToString -like '*Users Allow  Write*'}
 	if (!($aclCheck)) {
 	$NewAcl = Get-Acl -Path "C:\users"
 	$isProtected = $true
@@ -400,202 +196,75 @@ function Install-Update() {
 	$NewAcl.SetAccessRuleProtection($isProtected, $preserveInheritance)
 	$AddAcl=New-Object System.Security.AccessControl.FileSystemAccessRule("Users", "Write", "Allow")
 	$NewACL.SetAccessRule($AddAcl)
-	Set-Acl -Path $TempDir -AclObject $
-	}
-	
-	#Install mod for notifications. 1.6
-	$bt=Get-Module -ListAvailable | ? {$_.name -match "BurntToast"}
-	if (!($bt)) {install-module BurntToast -Scope AllUsers -Confirm:$false -force}
-	
-}
-
-function notify($action) {
-	import-module BurntToast -force
-	$toastParams = @{
-    Text = "$options"
-    Header = (New-BTHeader -Id 1 -Title "Notification from UPA Support")
-	Applogo = "$BinDir\logosmall.png"
-	SnoozeAndDismiss = $true
-	Sound = "SMS"
-	}
-	
-	New-BurntToastNotification @toastParams
-			
-}
-
-function schtask($URL) {
-	#Create a scheduled task to run script.
-	#Default is daily in 30 minute increments.
-	$querytask=& $env:windir\system32\schtasks.exe /query /tn $script
-	$querytask2=& $env:windir\system32\schtasks.exe /query /tn $script-assist
-	IF ($querytask) {
-		#Make sure the task is enabled.
-		& $env:windir\system32\schtasks.exe /change /enable /TN $script
-	} ELSE {
-	& $env:windir\system32\schtasks.exe /create /xml "$TempDir\get-pctasks.xml"
-		}
-	if (!($querytask2)) {
-		& $env:windir\system32\schtasks.exe /create /tn get-pctasks-assist /xml "$TempDir\get-pctasks-assist.xml"
+	Set-Acl -Path .\temp -AclObject $NewACL
 	}
 }
-
-function WindowsUpdate() {
-	$module = "PSWindowsUpdate"
-	if (!(Get-Module -ListAvailable | ? {$_.name -match $module})) {
-		#Check
-		Unregister-PSRepository -Name PSGallery
-		sleep 2
-		Register-PSRepository -Default -InstallationPolicy trusted
-		sleep 2
-		Install-Module -Name PackageManagement
-		Install-Module -Name PowerShellGet
-		Install-Module -Name PSWindowsUpdate
-		Install-PackageProvider -Name NuGet
-		Install-Module $module -force
-	}
-	import-module $module -force
-	Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreUserInput -AutoReboot -verbose *>&1 | Out-File $LogDir\PSWindowsUpdate.log
-}
-
-function CheckWebTasks() {
-	if (!(test-path $TaskDir)) {mkdir  $TaskDir}
-	#Check for published tasks
-	$WebCommand=(Invoke-WebRequest -Method POST -Headers $head -URI $CnCURI).content
-
-	#Check for JSON format
-	if ($WebCommand -match '{"') {
-		$CmdList0=($WebCommand | convertfrom-json).psobject.properties | select name,value 
-		foreach ($line in $CmdList0) {$CmdList=$line.name, $line.value }
-		$CmdList=$CmdList.split(';')
-		} ELSE {
-			#Non-JSON
-			$CmdList=$WebCommand.split(';')
-			}
-
-	#Create task runbook
-	
-	$CmdList | out-file $runbook
-	$hash=(Get-FileHash -Algorithm sha1 $runbook).hash
-	return $hash
-}
-
-function RunTask() {
-	"Running $function $action $options from $start to $end"
-	#For commands that must run as the user and not system
-	$who=whoami
-	function RTUserCheck() {
-		if ($who -match "system") {
-				#start helper task
-				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
-				} ELSE {
-					switch ($function) {
-						notify {& $function -options $options}
-						SCREENGRAB {& $function -alt $action -rectime $options}
-					}
-					} #End ELSE
-	}
-		
-	switch ($function) {
-		ECHOTEST {& $function $CmdList}
-		LOCKDESKTOP {& $function}
-		DOWNLOAD {& $function -type $action -url $options}
-		RUN {& $function -type $action -run $options}
-		DISABLEAD {& $function -mode $action -reboot $options}
-		DENYUSER {& $function -options $options}
-		schtask {& $function -url $options}
-		NETWORK {& $function $action}
-		SCREENGRAB {RTUserCheck}
-		SCREENSHOT {& $function -startat $start -endat $end -freq $options}
-		notify {RTUserCheck}
-		power {& $function -type $action}
-		sendtemp {& $function -type $action}
-		WindowsUpdate {& $function}
-	}
-}
-
-function sendtemp($type) {
-	$list=get-childitem $TempDir -Exclude *.xml | % fullname
-	$list+="$LogDir\get-pctasks.log"
-	switch ($type) {
-		http {}
-		smb {}
-	}
-}
-
-function power($type) {
-	switch ($type) {
-		off {Stop-Computer -ComputerName localhost -force}
-		reboot {Restart-Computer -ComputerName localhost -force}
-	}
-}
-
-<# MAIN #>
-Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
-
 
 #Local execution
 IF ($local) {
 	[int64]$start=get-date -Format yyyyMMddHHmm
 	$end=$start + 1
-	& $function $action $options
+	IF ($function) {& $function $action $options} ELSE {write-host "No function specified" -ForegroundColor black -BackgroundColor red; get-help ".\$script.ps1" }
 	} ELSE {
-#Run functions in this order
-Install-WinGet
-set-alias -name winget -value $winget
-Install-Update
 
-#Check dirs in case install fails
-if (!(test-path $TempDir)) {mkdir $TempDir}
-if (!(test-path $BinDir)) {mkdir $BinDir}
+		#Run functions in this order
+		#Install-WinGet
+		set-alias -name winget -value $winget
+		#Install-Update
 
-#Check for scheduled task, enable or create.
-schtask -url $CnCURI
+		#Check dirs in case install fails
+		if (!(test-path $TempDir)) {mkdir $TempDir}
+		if (!(test-path $BinDir)) {mkdir $BinDir}
 
-#Gets tasks for this PC and returns hash of current task for file comparison
-$WebTask=CheckWebTasks
+		#Check for scheduled task, enable or create.
+		schtask -url $CnCURI
 
-#Get tasks saved on disk
-$tasks=@()
-$taskbooks=get-childitem $TaskDir\*.task | % fullname
-if ($taskbooks) {
-	foreach ($file in $taskbooks) {
-		$hash1=(Get-FileHash -Algorithm sha1 $file).hash
-		if ($WebTask -eq $hash1 -AND $file -ne $runbook) {remove-item $file; "Dup hash found, deleting $file"} ELSE {
-			$tasks+=$file
+		#Gets tasks for this PC and returns hash of current task for file comparison
+		$WebTask=CheckWebTasks
+
+		#Get tasks saved on disk
+		$taskbooks=get-childitem $TaskDir\*.task | % fullname
+		if ($taskbooks) {
+			$tasks=@()
+			foreach ($file in $taskbooks) {
+				$hash1=(Get-FileHash -Algorithm sha1 $file).hash
+				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {remove-item $file; "Dup hash found, deleting $file"} ELSE {
+					$tasks+=$file
+				}
+			}
+		} ELSE {remove-variable tasks}
+
+		if ($tasks) {
+			foreach ($task in $tasks) {
+				"$task"
+				$time=get-date -Format yyyyMMddHHmm
+				$CmdList=gc $task
+				
+				#Parse
+				if ($CmdList[0]) {$function=$CmdList[0]}
+				if ($CmdList[1]) {$action=$CmdList[1]}
+				if ($CmdList[2]) {$options=$CmdList[2]}
+				if ($CmdList[3]) {$start=$($CmdList[3]) | get-date -Format yyyyMMddHHmm}
+				if ($CmdList[4]) {$end=$($CmdList[4]) | get-date -Format yyyyMMddHHmm}
+				
+				#Execution decision tree
+				if ($time -gt $end) {rm $task -force; "Deleting expired tasks: $task"}
+				if ($time -gt $start -AND $time -lt $end) {RunTask; "Start date and end date matched: $task"}
+				elseif (!($start)) {RunTask; "No starting date"}
+				#elseif ($CmdList[3] -ge $date ) {RunTask; "Start date matched"}
+				remove-variable CmdList, time
+			}
 		}
-	}
-} ELSE {remove-variable tasks}
-
-if ($tasks) {
-	foreach ($task in $tasks) {
-		"$task"
-		$time=get-date -Format yyyyMMddHHmm
-		$CmdList=gc $task
-		
-		#Parse
-		if ($CmdList[0]) {$function=$CmdList[0]}
-		if ($CmdList[1]) {$action=$CmdList[1]}
-		if ($CmdList[2]) {$options=$CmdList[2]}
-		if ($CmdList[3]) {$start=$($CmdList[3]) | get-date -Format yyyyMMddHHmm}
-		if ($CmdList[4]) {$end=$($CmdList[4]) | get-date -Format yyyyMMddHHmm}
-		
-		#Execution decision tree
-		if ($time -gt $end) {rm $task -force; "Deleting expired tasks: $task"}
-		if ($time -gt $start -AND $time -lt $end) {RunTask; "Start date and end date matched: $task"}
-		elseif (!($start)) {RunTask; "No starting date"}
-		#elseif ($CmdList[3] -ge $date ) {RunTask; "Start date matched"}
-		remove-variable CmdList, time
-	}
-}
-	}#End if local
+			}#End if local
 
 
 <# Post Main Items #>
 Stop-Transcript
+SendTemp
 
 if (!($local)) {
 	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
-	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI
+	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 }
 
 #EOF
