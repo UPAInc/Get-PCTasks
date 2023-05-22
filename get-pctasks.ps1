@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.6.4
+.VERSION 2.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -179,7 +179,7 @@ try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely st
 Start-Transcript $log -force
 
 <# FUNCTIONS #>
-Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
+Get-ChildItem "$RunDir\functions" | ForEach-Object {import-module $_.FullName -force}
 
 <# MAIN #>
 
