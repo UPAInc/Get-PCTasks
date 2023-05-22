@@ -188,7 +188,7 @@ Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAdd
 
 #Grant users write access to temp folder.
 if ($IsSystem) {
-	$aclCheck=Get-Acl -Path .\temp | ? {$_.AccessToString -like '*Users Allow  Write*'}
+	$aclCheck=Get-Acl -Path $tempdir | ? {$_.AccessToString -like '*Users Allow  Write*'}
 	if (!($aclCheck)) {
 	$NewAcl = Get-Acl -Path "C:\users"
 	$isProtected = $true
@@ -196,7 +196,7 @@ if ($IsSystem) {
 	$NewAcl.SetAccessRuleProtection($isProtected, $preserveInheritance)
 	$AddAcl=New-Object System.Security.AccessControl.FileSystemAccessRule("Users", "Write", "Allow")
 	$NewACL.SetAccessRule($AddAcl)
-	Set-Acl -Path .\temp -AclObject $NewACL
+	Set-Acl -Path $tempdir -AclObject $NewACL
 	}
 }
 
@@ -209,7 +209,7 @@ IF ($local) {
 
 		#Run functions in this order
 		#Install-WinGet
-		set-alias -name winget -value $winget
+		#set-alias -name winget -value $winget
 		#Install-Update
 
 		#Check dirs in case install fails
