@@ -4,16 +4,16 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function SCREENGRAB($alt,$rectime,$startat,$endat) {
 	$ffmpeg1="$BinDir\ffmpeg.exe"
-	$ffmpeg2="$((Get-ChildItem -Recurse "C:\Program Files\WinGet\" -ErrorAction SilentlyContinue | ? {$_.name -eq "ffmpeg.exe"} | % fullname).trim())"
-	$ffmpeg3="$env:ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin\ffmpeg.exe"
+	$ffmpeg2="$((Get-ChildItem -Recurse "C:\Program Files\WinGet\" -ErrorAction SilentlyContinue | ? {$_.name -eq "ffmpeg.exe" -and $_.length -gt 1000} | % fullname).trim())"
+	$ffmpeg3="$((Get-ChildItem -Recurse "$env:ProgramData\chocolatey\bin" -ErrorAction SilentlyContinue | ? {$_.name -eq "ffmpeg.exe"} | % fullname).trim())"
 	
 	if (!($rectime)) {$rectime="00:15:00"} #default time to capture screen
 	if (!($endat)) {$endat=$end}
 	if (!($startat)) {$startat=$start}
 	
-	$chkff=get-command ffmpeg | % source
+	$chkff=get-command ffmpeg | % source | get-childitem | ? {$_.length -gt 1000} | % fullname
 	if (!($chkff)) {
-		$ffmpeg=if (test-path $ffmpeg1) {return $ffmpeg1} ELSEIF (test-path $ffmpeg2) {return $ffmpeg2} ELSEIF (test-path $ffmpeg3) {return $ffmpeg3} ELSE {"ffmpeg missing"; break}
+		if ($(try {test-path $ffmpeg1} catch {$false})) {$ffmpeg=$ffmpeg1} ELSEIF ($(try {test-path $ffmpeg2} catch {$false})) {$ffmpeg=$ffmpeg2} ELSEIF ($(try {test-path $ffmpeg3} catch {$false})) {$ffmpeg=$ffmpeg3}
 		} ELSE {$ffmpeg=$chkff}
 		
 	if (!(Get-Process | ? {$_.ProcessName -like 'ffmpeg'})) {
