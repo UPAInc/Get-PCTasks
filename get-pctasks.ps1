@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.1
+.VERSION 2.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -90,6 +90,9 @@ For more information, please refer to <http://unlicense.org/>
 		Moved functions to their own file and folder in .\functions.
 		Added path for FS share and SendTemp function runs each time.
 		Cleaned up minor bugs and variable updates.
+	20230523 - 2.2
+		Window was showing in user mode, added a window hide.
+		Screengrab had a path issue.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -161,6 +164,14 @@ $head = @{
 	'Content-Type'='application/json'
 	'name'="$($env:computername.ToUpper())"
 	}
+
+#Hide user execution
+#https://stackoverflow.com/questions/1802127/how-to-run-a-powershell-script-without-displaying-a-window
+IF (!($IsSystem)) {
+$t = '[DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state);'
+add-type -name win -member $t -namespace native
+[native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0)
+}
 
 #IE Fix
 IF ($IsSystem) {
