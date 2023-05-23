@@ -219,10 +219,9 @@ IF ($local) {
 	} ELSE {
 
 		#Run functions in this order
-		#Install-WinGet
-		#set-alias -name winget -value $winget
+		
 		#Install-Update
-
+		if ($IsSystem) {git pull}
 		#Check dirs in case install fails
 		if (!(test-path $TempDir)) {mkdir $TempDir}
 		if (!(test-path $BinDir)) {mkdir $BinDir}
