@@ -1,6 +1,6 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 $script:user=whoami
-$FSPath="\\$RemoteFS\$RemoteFSShare\$env:computername\$env:username"
+$FSPath="\\$RemoteFS\$RemoteFSShare\$env:computername"
 
 function sendtemp($type) {
 	#write-host "Running $name on $tempdir ..." -ForegroundColor yellow -BackgroundColor black
