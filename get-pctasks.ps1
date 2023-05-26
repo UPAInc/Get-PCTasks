@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.2
+.VERSION 2.3
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -93,6 +93,10 @@ For more information, please refer to <http://unlicense.org/>
 	20230523 - 2.2
 		Window was showing in user mode, added a window hide.
 		Screengrab had a path issue.
+	20230526 - 2.3
+		Removed from line 245 'ELSE {remove-variable tasks}'
+		Updated sched task file to have name when importing xml.
+		Add an IF to the WebCheck function to prevent error when no task existed.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -242,7 +246,7 @@ IF ($local) {
 					$tasks+=$file
 				}
 			}
-		} ELSE {remove-variable tasks}
+		}
 
 		if ($tasks) {
 			foreach ($task in $tasks) {
