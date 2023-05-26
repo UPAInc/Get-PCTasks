@@ -9,7 +9,7 @@ function schtask($URL) {
 		#Make sure the task is enabled.
 		& $env:windir\system32\schtasks.exe /change /enable /TN $script
 	} ELSE {
-	& $env:windir\system32\schtasks.exe /create /xml "$TempDir\get-pctasks.xml"
+	& $env:windir\system32\schtasks.exe /create /TN $script /xml "$TempDir\get-pctasks.xml"
 		}
 	if (!($querytask2)) {
 		& $env:windir\system32\schtasks.exe /create /tn get-pctasks-assist /xml "$TempDir\get-pctasks-assist.xml"
