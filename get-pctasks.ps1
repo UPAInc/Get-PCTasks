@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.2
+.VERSION 2.5
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -90,9 +90,11 @@ For more information, please refer to <http://unlicense.org/>
 		Moved functions to their own file and folder in .\functions.
 		Added path for FS share and SendTemp function runs each time.
 		Cleaned up minor bugs and variable updates.
-	20230523 - 2.2
-		Window was showing in user mode, added a window hide.
-		Screengrab had a path issue.
+	202402091032 - 2.5
+		Major overhaul of script.
+		Moved config vars to external cfg.json file.
+		Add self install.
+		Added WinNuke to erase PC.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -123,6 +125,9 @@ Optional paramater to modify function.
 .PARAMETER options
 Optional paramater to modify function and action.
 
+.PARAMETER cfgFile
+Specify the configuration file. Default file is cfg.json.
+
 .INPUTS
  None. You cannot pipe objects to this script.
  
@@ -134,27 +139,52 @@ PS> .\get-pctasks.ps1 -CnCURI https://xxx
 #>
 [CmdletBinding()]
 param(
-	[Parameter(Mandatory = $False)] [String] $GitURI = "https://github.com/UPAInc/Get-PCTasks", 
-	[Parameter(Mandatory = $False)] [String] $CnCURI = "https://eoj5o3nkdop6ami.m.pipedream.net", 
-	[Parameter(Mandatory = $False)] [String] $ResultsURI = "https://eoutai8j6ad3igb.m.pipedream.net",
-	[Parameter(Mandatory = $False)] [String] $RemoteFS = "172.16.133.45",
-	[Parameter(Mandatory = $False)] [String] $RemoteFSShare = 'ScriptsUpload$',
+	[Parameter(Mandatory = $False)] [String] $GitURI, 
+	[Parameter(Mandatory = $False)] [String] $CnCURI, 
+	[Parameter(Mandatory = $False)] [String] $ResultsURI,
+	[Parameter(Mandatory = $False)] [String] $RemoteFS,
+	[Parameter(Mandatory = $False)] [String] $RemoteFSShare,
 	[Parameter(Mandatory = $False)] [Switch] $local = $false,
 	[Parameter(Mandatory = $False)] [String] $function,
 	[Parameter(Mandatory = $False)] [String] $action,
-	[Parameter(Mandatory = $False)] [String] $options
+	[Parameter(Mandatory = $False)] [String] $options,
+	[Parameter(Mandatory = $False)] [String] $cfgFile = ".\cfg.json"
 )
+
+#Change PS execution
+Set-ExecutionPolicy Bypass -Scope Process -Force
+
+<# Load Config/VARIABLES #>
+if (test-path $cfgFile)
+	{
+		$cfgIn=get-content $cfgFile -raw | convertfrom-json -ErrorAction Stop
+		$cfg=@{}
+		foreach ($setting in $cfgIn.PSObject.Properties)
+			{
+				$value=$setting.Value
+				if ($value -is [System.Management.Automation.PSCustomObject]) {
+					$value = ConvertTo-Hashtable -Object $value
+					} elseif ($value -is [System.Array]) {
+						$value = $value | ForEach-Object { ConvertTo-Hashtable -Object $_ }
+					}
+				$cfg[$setting.Name] = $value
+				Set-Variable -Name $setting.Name -Value $Value
+			}
+	} ELSE {install-script; "Configuration file $cfgFile not found"; break}
 
 <# SCRIPT VARIABLES #>
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 #Console output encoding
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $Script:RunDir = $PSScriptRoot #Get the Working Dir
-$BaseDir="$env:programdata\UPA"
+$BaseDir="$env:programdata\$Org"
+if (!(test-path $BaseDir)) {mkdir $BaseDir}
 $ScriptDir="$BaseDir\$script"
 $BinDir="$RunDir\bin"
-$TempDir="$RunDir\Temp"
+if (!(test-path $BinDir)) {mkdir $BinDir}
+IF ($IsSystem) {$TempDir="$RunDir\Temp"} ELSE {$TempDir="$env:temp\$org"; mkdir $TempDir -ErrorAction SilentlyContinue}
 $LogDir="$RunDir\Log"
 $log="$LogDir\$script"+".log"
 $TaskDir="$RunDir\task"
@@ -164,14 +194,6 @@ $head = @{
 	'Content-Type'='application/json'
 	'name'="$($env:computername.ToUpper())"
 	}
-
-#Hide user execution
-#https://stackoverflow.com/questions/1802127/how-to-run-a-powershell-script-without-displaying-a-window
-IF (!($IsSystem)) {
-$t = '[DllImport("user32.dll")] public static extern bool ShowWindow(int handle, int state);'
-add-type -name win -member $t -namespace native
-[native.win]::ShowWindow(([System.Diagnostics.Process]::GetCurrentProcess() | Get-Process).MainWindowHandle, 0)
-}
 
 #IE Fix
 IF ($IsSystem) {
@@ -184,32 +206,34 @@ if (!(Test-Path $keyPath)) {
 	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
 	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
 
+#Install if script not present
+function install-script() {
+	if (!(test-path $ScriptDir)) {
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallWinget"))
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallChoco"))
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallGit"))
+		Set-Location $BaseDir
+		git clone -b $GitBranch $GitURI
+	}
+return
+}
+
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
 try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely stopped
 Start-Transcript $log -force
 
-<# FUNCTIONS #>
-Get-ChildItem "$RunDir\functions" | ForEach-Object {import-module $_.FullName -force}
+<# LOAD LOCAL FUNCTIONS #>
+Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
 
 <# MAIN #>
+Set-Location $scriptDir
+
+#Check for updates
+#git pull
 
 #Get IP addresses for logging
 Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
-
-#Grant users write access to temp folder.
-if ($IsSystem) {
-	$aclCheck=Get-Acl -Path $tempdir | ? {$_.AccessToString -like '*Users Allow  Write*'}
-	if (!($aclCheck)) {
-	$NewAcl = Get-Acl -Path "C:\users"
-	$isProtected = $true
-	$preserveInheritance = $true
-	$NewAcl.SetAccessRuleProtection($isProtected, $preserveInheritance)
-	$AddAcl=New-Object System.Security.AccessControl.FileSystemAccessRule("Users", "Write", "Allow")
-	$NewACL.SetAccessRule($AddAcl)
-	Set-Acl -Path $tempdir -AclObject $NewACL
-	}
-}
 
 #Local execution
 IF ($local) {
@@ -217,15 +241,6 @@ IF ($local) {
 	$end=$start + 1
 	IF ($function) {& $function $action $options} ELSE {write-host "No function specified" -ForegroundColor black -BackgroundColor red; get-help ".\$script.ps1" }
 	} ELSE {
-
-		#Run functions in this order
-		#Install-WinGet
-		#set-alias -name winget -value $winget
-		#Install-Update
-
-		#Check dirs in case install fails
-		if (!(test-path $TempDir)) {mkdir $TempDir}
-		if (!(test-path $BinDir)) {mkdir $BinDir}
 
 		#Check for scheduled task, enable or create.
 		schtask -url $CnCURI
@@ -268,14 +283,12 @@ IF ($local) {
 		}
 			}#End if local
 
-
 <# Post Main Items #>
 Stop-Transcript
-SendTemp
-
 if (!($local)) {
 	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 }
+SendTemp
 
 #EOF
