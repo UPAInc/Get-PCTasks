@@ -4,7 +4,7 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function SCREENGRAB($alt,$rectime,$startat,$endat) {
 	$chkff=get-command ffmpeg
-	$ffmpeg0="$chkff.source"
+	$ffmpeg=$chkff.source
 	$ffmpeg1="$BinDir\ffmpeg.exe"
 	$ffmpeg2="$(Get-ChildItem -Recurse "C:\Program Files\WinGet\Packages" | ? {$_.name -eq "ffmpeg.exe"} | % fullname)"
 	$ffmpeg3="$env:ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin\ffmpeg.exe"
@@ -13,7 +13,7 @@ function SCREENGRAB($alt,$rectime,$startat,$endat) {
 	if (!($endat)) {$endat=$end}
 	if (!($startat)) {$startat=$start}
 	
-	if (!($chkff)) {
+	if (!($ffmpeg)) {
 			$ffmpeg=if (test-path $ffmpeg1) {return $ffmpeg1} ELSEIF (test-path $ffmpeg2) {return $ffmpeg2} ELSEIF (test-path $ffmpeg3) {return $ffmpeg3} ELSE {"ffmpeg missing"; break}
 		}
 		
