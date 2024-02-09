@@ -6,14 +6,8 @@ function DENYUSER($action) {
 	#>
 	
 	switch ($action) {
-		false {
-			& $BinDir\ntrights.exe -r SeDenyInteractiveLogonRight -u $options
-			& $BinDir\ntrights.exe -r SeDenyRemoteInteractiveLogonRight -u $options
-			}
-		default {
-			& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options
-			& $BinDir\ntrights.exe +r SeDenyRemoteInteractiveLogonRight -u $options
-			}
+		false {& $BinDir\ntrights.exe -r SeDenyInteractiveLogonRight -u $options}
+		default {& $BinDir\ntrights.exe +r SeDenyInteractiveLogonRight -u $options}
 	}
 	
 	LOCKDESKTOP

