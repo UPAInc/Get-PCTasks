@@ -55,7 +55,7 @@ if (!($path)) {
 	
 
 } #End function
-
-if (!(winget)) {Install-WinGet}
+$wg=get-command winget
+if (!($wg)) {Install-WinGet}
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
