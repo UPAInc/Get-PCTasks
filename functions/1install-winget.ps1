@@ -31,7 +31,7 @@ if (!($path)) {
 
     #Current: v1.4.10173 = 1.19.10173.0 = 2023.118.406.0
 	#old code: [Version]$TestWinGet.Version -ge "2023.118.406.0"
-    If (test-path $winget) {Write-Host "WinGet is Installed" -ForegroundColor Green} Else {
+    If ($winget) {Write-Host "WinGet is Installed" -ForegroundColor Green} Else {
         #Download WinGet MSIXBundle
         Write-Host "-> Not installed. Downloading WinGet..."
         $WinGetURL = "https://github.com/microsoft/winget-cli/releases/download/v1.4.10173/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
