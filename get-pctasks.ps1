@@ -148,7 +148,9 @@ param(
 	[Parameter(Mandatory = $False)] [String] $function,
 	[Parameter(Mandatory = $False)] [String] $action,
 	[Parameter(Mandatory = $False)] [String] $options,
-	[Parameter(Mandatory = $False)] [String] $cfgFile = ".\cfg.json"
+	[Parameter(Mandatory = $False)] [String] $cfgFile = ".\cfg.json",
+	[Parameter(Mandatory = $False)] [int64] $start = "$(get-date -Format yyyyMMddHHmm)",
+	[Parameter(Mandatory = $False)] [int64] $end = "$((get-date).AddMinutes(30) | get-date -Format yyyyMMddHHmm)"
 )
 
 #Change PS execution
@@ -170,7 +172,8 @@ if (test-path $cfgFile)
 				$cfg[$setting.Name] = $value
 				Set-Variable -Name $setting.Name -Value $Value
 			}
-	} ELSE {install-script; "Configuration file $cfgFile not found"; break}
+	} ELSE {"Configuration file $cfgFile not found"; break}
+
 
 <# SCRIPT VARIABLES #>
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 #Console output encoding
@@ -178,12 +181,12 @@ if (test-path $cfgFile)
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
-$Script:RunDir = $PSScriptRoot #Get the Working Dir
 $BaseDir="$env:programdata\$Org"
 if (!(test-path $BaseDir)) {mkdir $BaseDir}
 $ScriptDir="$BaseDir\$script"
+$Script:RunDir=$ScriptDir
 $BinDir="$RunDir\bin"
-if (!(test-path $BinDir)) {mkdir $BinDir}
+#if (!(test-path $BinDir)) {mkdir $BinDir}
 IF ($IsSystem) {$TempDir="$RunDir\Temp"} ELSE {$TempDir="$env:temp\$org"; mkdir $TempDir -ErrorAction SilentlyContinue}
 $LogDir="$RunDir\Log"
 $log="$LogDir\$script"+".log"
@@ -193,6 +196,15 @@ $runbook="$TaskDir\$filenameDate.task" #name cannot change per instance
 $head = @{
 	'Content-Type'='application/json'
 	'name'="$($env:computername.ToUpper())"
+	}
+
+#Install if script not present
+	if (!(test-path $ScriptDir)) {
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallWinget"))
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallChoco"))
+		iex ((New-Object System.Net.WebClient).DownloadString("$InstallGit"))
+		Set-Location $BaseDir
+		git clone -b $GitBranch $GitURI
 	}
 
 #IE Fix
@@ -205,18 +217,6 @@ if (!(Test-Path $keyPath)) {
 	New-Item $keyPath -Force | Out-Null 
 	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
 	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
-
-#Install if script not present
-function install-script() {
-	if (!(test-path $ScriptDir)) {
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallWinget"))
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallChoco"))
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallGit"))
-		Set-Location $BaseDir
-		git clone -b $GitBranch $GitURI
-	}
-return
-}
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -237,8 +237,8 @@ Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAdd
 
 #Local execution
 IF ($local) {
-	[int64]$start=get-date -Format yyyyMMddHHmm
-	$end=$start + 1
+	#[int64]$start=get-date -Format yyyyMMddHHmm
+	#$end=$start + 1
 	IF ($function) {& $function $action $options} ELSE {write-host "No function specified" -ForegroundColor black -BackgroundColor red; get-help ".\$script.ps1" }
 	} ELSE {
 
