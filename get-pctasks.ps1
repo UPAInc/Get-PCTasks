@@ -101,6 +101,9 @@ For more information, please refer to <http://unlicense.org/>
 		Updated many of the functions.
 		Added Cancel in CheckWebTasks to delete all tasks.
 		Added enable winrm.
+	202402151328 - 2.6.1
+		Updated install detect path.
+		Added pause for cfg file on install.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -181,18 +184,17 @@ if (test-path $cfgFile)
 				$cfg[$setting.Name] = $value
 				Set-Variable -Name $setting.Name -Value $Value
 			}
-	} ELSEIF (!(test-path "$env:programdata\$Org")) {
+	} ELSEIF (!(test-path "$env:programdata\$Org\get-pctasks")) {
 		#Install if script folder not present
-		mkdir "$env:programdata\$Org"
+		if (!(test-path "$env:programdata\$Org")) {mkdir "$env:programdata\$Org"}
 		Set-Location "$env:programdata\$Org"
 		Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 		$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
 		choco install -y git
 		git clone -b $GitBranch $GitURI
-		"Place configuration file $cfgFile $env:programdata\$Org"
-		break
+		write-host "Place configuration file $cfgFile in $env:programdata\$Org to continue." -BackgroundColor white -ForegroundColor red
+		pause
 		} ELSE {"Configuration file $cfgFile not found"; break}
-
 
 <# SCRIPT VARIABLES #>
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 #Console output encoding
