@@ -1,18 +1,35 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
-function schtask($URL) {
-	#Create a scheduled task to run script.
-	#Default is daily in 30 minute increments.
-	$querytask=& $env:windir\system32\schtasks.exe /query /tn $script
-	$querytask2=& $env:windir\system32\schtasks.exe /query /tn $script-assist
-	IF ($querytask) {
-		#Make sure the task is enabled.
-		& $env:windir\system32\schtasks.exe /change /enable /TN $script
-	} ELSE {
-	& $env:windir\system32\schtasks.exe /create /TN $script /xml "$TempDir\get-pctasks.xml"
-		}
-	if (!($querytask2)) {
-		& $env:windir\system32\schtasks.exe /create /tn get-pctasks-assist /xml "$TempDir\get-pctasks-assist.xml"
-	}
+$TaskXML1=".\temp\get-pctasks.xml"
+$TaskXML2=".\temp\get-pctasks-assist.xml"
+
+[xml]$currentST=c:\windows\system32\schtasks.exe /query /tn "get-pctasks" /xml
+[xml]$currentST2=c:\windows\system32\schtasks.exe /query /tn "get-pctasks-assist" /xml
+[xml]$FileST=gc $TaskXML1 -raw
+[int64]$STDate=$currentST.task.RegistrationInfo.date | get-date -format yyyyMMdd
+[int64]$FileDate=$FileST.task.RegistrationInfo.date | get-date -format yyyyMMdd
+
+function stmake() {
+	& c:\windows\system32\schtasks.exe /create /tn get-pctasks /xml $TaskXML1
+	& c:\windows\system32\schtasks.exe /create /tn get-pctasks-assist /xml $TaskXML2
 }
+
+function stdelete() {
+	& c:\windows\system32\schtasks.exe /delete /tn get-pctasks /F
+	& c:\windows\system32\schtasks.exe /delete /tn get-pctasks-assist /F
+}
+
+"Current Task Date: $STDate"
+"Current XML File Date: $FileDate"
+
+if ($STDate -eq $FileDate)
+	{
+		IF ($currentST.task) {& c:\windows\system32\schtasks.exe /change /enable /TN "get-pctasks"}
+		IF (!($currentST.task)) {& c:\windows\system32\schtasks.exe /create /tn get-pctasks-assist /xml $TaskXML2}
+	} ELSE 
+	{
+		stdelete
+		stmake
+	}
+	
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black

