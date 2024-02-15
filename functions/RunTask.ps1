@@ -7,7 +7,7 @@ function RunTask() {
 	function RTUserCheck() {
 		if ($who -match "system") {
 				#start helper task
-				& $env:windir\system32\schtasks.exe /run /i /tn "$Script-assist"
+				& c:\windows\system32\schtasks.exe /run /i /tn "get-pctasks-assist"
 				} ELSE {
 					switch ($function) {
 						notify {& $function -options $options}

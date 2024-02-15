@@ -20,7 +20,7 @@ Remove-Item .\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle
 return
 } #End function
 
-$wg=get-command winget
-if (!($wg)) {Install-WinGet}
+#$wg=get-command winget
+#if (!($wg)) {Install-WinGet}
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
