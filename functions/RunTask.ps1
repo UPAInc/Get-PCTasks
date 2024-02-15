@@ -11,7 +11,9 @@ function RunTask() {
 				} ELSE {
 					switch ($function) {
 						notify {& $function -options $options}
+						RunAsUser {& RUN -type $action -run $options}
 						SCREENGRAB {& $function -alt $action -rectime $options}
+						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
 						SendTemp {& $function -type $action}
 					} #End Switch
 					} #End ELSE
@@ -22,12 +24,13 @@ function RunTask() {
 		LOCKDESKTOP {& $function}
 		DOWNLOAD {& $function -type $action -url $options}
 		RUN {& $function -type $action -run $options}
+		RunAsUser {RTUserCheck}
 		DISABLEAD {& $function -mode $action -reboot $options}
 		DENYUSER {& $function -options $options}
 		schtask {& $function -url $options}
 		NETWORK {& $function $action}
 		SCREENGRAB {RTUserCheck}
-		SCREENSHOT {& $function -startat $start -endat $end -freq $options}
+		SCREENSHOT {RTUserCheck}
 		notify {RTUserCheck}
 		power {& $function -type $action}
 		sendtemp {RTUserCheck}
