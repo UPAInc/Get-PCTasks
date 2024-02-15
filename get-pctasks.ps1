@@ -105,11 +105,20 @@ For more information, please refer to <http://unlicense.org/>
 		Updated install detect path.
 		Added pause for cfg file on install and look for cfg in temp.
 		Added install BurntToast function for notifications.
+	202402151713 - 2.6.3
+		Disabled winget install.
+		Fixed screenshot running as user.
+		Added RunAsUser.
+		Fixed task schedules.
+		Enabled git pull.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
 		Add combo function.
 		Backup browser history file.
+		Add action to WinNuke for safety.
+		Clean up Get-PCTasks-results.
+		
 		
 		
 #>
@@ -249,7 +258,7 @@ Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
 Set-Location $scriptDir
 
 #Check for updates
-#git pull
+git pull
 
 #Get IP addresses for logging
 Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
