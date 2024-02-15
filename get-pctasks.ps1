@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.6
+.VERSION 2.6.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -101,9 +101,10 @@ For more information, please refer to <http://unlicense.org/>
 		Updated many of the functions.
 		Added Cancel in CheckWebTasks to delete all tasks.
 		Added enable winrm.
-	202402151328 - 2.6.1
+	202402151328 - 2.6.2
 		Updated install detect path.
-		Added pause for cfg file on install.
+		Added pause for cfg file on install and look for cfg in temp.
+		Added install BurntToast function for notifications.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -193,7 +194,10 @@ if (test-path $cfgFile)
 		choco install -y git
 		git clone -b $GitBranch $GitURI
 		write-host "Place configuration file $cfgFile in $env:programdata\$Org to continue." -BackgroundColor white -ForegroundColor red
-		pause
+		if (test-path "c:\temp\cfg.json") {copy "c:\temp\cfg.json" "$env:programdata\$Org\get-pctasks" -force} ELSE {pause}
+		Set-Location "$env:programdata\$Org\get-pctasks"
+		& .\get-pctasks.ps1
+		break
 		} ELSE {"Configuration file $cfgFile not found"; break}
 
 <# SCRIPT VARIABLES #>
