@@ -1,8 +1,9 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 $chkff=get-command ffmpeg
+$wg=get-command ffmpeg
 if (!($chkff)) {
-	if (winget) {
+	if ($wg) {
 			winget install ffmpeg -e --source winget --scope machine --accept-package-agreements -h
 		} ELSE {
 			choco install -y ffmpeg

@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.5
+.VERSION 2.6
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -95,9 +95,16 @@ For more information, please refer to <http://unlicense.org/>
 		Moved config vars to external cfg.json file.
 		Add self install.
 		Added WinNuke to erase PC.
+	202402151150 - 2.6
+		Added more default paramaters.
+		With issues with winget, added choco install when cfg is missing.
+		Updated many of the functions.
+		Added Cancel in CheckWebTasks to delete all tasks.
+		Added enable winrm.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
+		Add combo function.
 		Backup browser history file.
 		
 		
@@ -139,7 +146,8 @@ PS> .\get-pctasks.ps1 -CnCURI https://xxx
 #>
 [CmdletBinding()]
 param(
-	[Parameter(Mandatory = $False)] [String] $GitURI, 
+	[Parameter(Mandatory = $False)] [String] $GitURI = "https://github.com/UPAInc/Get-PCTasks.git",
+	[Parameter(Mandatory = $False)] [String] $GitBranch = "main",
 	[Parameter(Mandatory = $False)] [String] $CnCURI, 
 	[Parameter(Mandatory = $False)] [String] $ResultsURI,
 	[Parameter(Mandatory = $False)] [String] $RemoteFS,
@@ -149,6 +157,7 @@ param(
 	[Parameter(Mandatory = $False)] [String] $action,
 	[Parameter(Mandatory = $False)] [String] $options,
 	[Parameter(Mandatory = $False)] [String] $cfgFile = ".\cfg.json",
+	[Parameter(Mandatory = $False)] [String] $Org = "UPA",
 	[Parameter(Mandatory = $False)] [int64] $start = "$(get-date -Format yyyyMMddHHmm)",
 	[Parameter(Mandatory = $False)] [int64] $end = "$((get-date).AddMinutes(30) | get-date -Format yyyyMMddHHmm)"
 )
@@ -172,7 +181,17 @@ if (test-path $cfgFile)
 				$cfg[$setting.Name] = $value
 				Set-Variable -Name $setting.Name -Value $Value
 			}
-	} ELSE {"Configuration file $cfgFile not found"; break}
+	} ELSEIF (!(test-path "$env:programdata\$Org")) {
+		#Install if script folder not present
+		mkdir "$env:programdata\$Org"
+		Set-Location "$env:programdata\$Org"
+		Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+		$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+		choco install -y git
+		git clone -b $GitBranch $GitURI
+		"Place configuration file $cfgFile $env:programdata\$Org"
+		break
+		} ELSE {"Configuration file $cfgFile not found"; break}
 
 
 <# SCRIPT VARIABLES #>
@@ -198,15 +217,6 @@ $head = @{
 	'name'="$($env:computername.ToUpper())"
 	}
 
-#Install if script not present
-	if (!(test-path $ScriptDir)) {
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallWinget"))
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallChoco"))
-		iex ((New-Object System.Net.WebClient).DownloadString("$InstallGit"))
-		Set-Location $BaseDir
-		git clone -b $GitBranch $GitURI
-	}
-
 #IE Fix
 IF ($IsSystem) {
 	$keyPath = 'Registry::HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Internet Explorer\Main'
@@ -217,6 +227,9 @@ if (!(Test-Path $keyPath)) {
 	New-Item $keyPath -Force | Out-Null 
 	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
 	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
+
+#Check winrm
+IF ($IsSystem) {winrm quickconfig -q -force}
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
@@ -241,9 +254,6 @@ IF ($local) {
 	#$end=$start + 1
 	IF ($function) {& $function $action $options} ELSE {write-host "No function specified" -ForegroundColor black -BackgroundColor red; get-help ".\$script.ps1" }
 	} ELSE {
-
-		#Check for scheduled task, enable or create.
-		schtask -url $CnCURI
 
 		#Gets tasks for this PC and returns hash of current task for file comparison
 		$WebTask=CheckWebTasks

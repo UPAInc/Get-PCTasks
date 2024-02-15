@@ -1,0 +1,9 @@
+{
+    "Org": "UPA",
+	"GitURI":  "https://github.com/UPAInc/Get-PCTasks",
+	"GitBranch": "main",
+	"CnCURI": "https://",
+	"ResultsURI": "https://",
+	"RemoteFS": "FileServerName",
+	"RemoteFSShare": 'FileServerShare'
+}

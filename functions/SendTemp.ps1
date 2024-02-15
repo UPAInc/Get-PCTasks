@@ -6,7 +6,7 @@ function sendtemp($type) {
 	#write-host "Running $name on $tempdir ..." -ForegroundColor yellow -BackgroundColor black
 	
 	$list=get-childitem $TempDir -Exclude *.xml | % fullname
-	$list+="$LogDir\get-pctasks.log"
+	#$list+="$LogDir\get-pctasks.log"
 	IF ($list) {
 	switch ($type) {
 		http {}
@@ -15,6 +15,7 @@ function sendtemp($type) {
 			IF ($TestFS) {
 				if (!(test-path $FSPath)) {mkdir $FSPath -force -verbose}
 				foreach ($file in $list) {move $file $FSPath -force -verbose -ErrorAction:SilentlyContinue}
+				copy "$LogDir\get-pctasks.log" $FSPath -force -verbose -ErrorAction:SilentlyContinue
 				}
 			}
 		

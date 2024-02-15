@@ -15,6 +15,7 @@ function DISABLEAD($mode,$reboot) {
 		New-ItemProperty -Path "$path" -PropertyType 'String' -Name $name -Value $value
 		Get-ItemProperty -Path $path | foreach $name
 		}
+		LOCKDESKTOP
 	}
 	
 	switch($mode) {

