@@ -3,6 +3,8 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function SCREENGRAB($alt,$rectime,$startat,$endat) {
+	$ffactive=get-process |? {$_.name -like '*ffmpeg*'} | select name
+	if (!($ffactive)) {
 	$chkff=get-command ffmpeg
 	$ffmpeg=$chkff.source
 	$ffmpeg1="$BinDir\ffmpeg.exe"
@@ -30,6 +32,7 @@ function SCREENGRAB($alt,$rectime,$startat,$endat) {
 				}
 			[int64]$startat=get-date -Format yyyyMMddHHmm
 		}
+	}
 	}
 }
 

@@ -1,12 +1,15 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
+$ssactive="$tempdir\ss.active"
 
 function SCREENSHOT($startat,$endat,$freq) {
+	if (!(test-path $ssactive)) {
 	#From https://stackoverflow.com/questions/2969321/how-can-i-do-a-screen-capture-in-windows-powershell
 	if (!($endat)) {$endat=$end}
 	if (!($startat)) {$startat=$start}
 	if (!($freq)) {$freq=15}
 	"Running from $startat to $endat"
 	while ($startat -lt $endat) {
+		"Running" | out-file $ssactive -force
 	$rand=get-random -Minimum 1000 -Maximum 9999
 	$snap="$TempDir\$env:computername-$rand-$filenameDate.png"
 	Add-Type -AssemblyName System.Windows.Forms,System.Drawing
@@ -27,6 +30,8 @@ function SCREENSHOT($startat,$endat,$freq) {
 	sleep -Seconds $freq
 	[int64]$startat=get-date -Format yyyyMMddHHmm
 	}
+	}
+	Remove-Item $ssactive -force -ErrorAction SilentlyContinue
 }
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
