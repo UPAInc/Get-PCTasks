@@ -1,5 +1,5 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
-$ssactive="$tempdir\ss.active"
+$ssactive="$logdir\ss.active"
 
 function SCREENSHOT($startat,$endat,$freq) {
 	if (!(test-path $ssactive)) {
