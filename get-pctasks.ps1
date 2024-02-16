@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.6.2
+.VERSION 2.6.4
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -111,6 +111,11 @@ For more information, please refer to <http://unlicense.org/>
 		Added RunAsUser.
 		Fixed task schedules.
 		Enabled git pull.
+	202402160948 - 2.6.4
+		Testing new results upload.
+		Sectioned things to only run as system user.
+		Added admin check to script install.
+		Added WPF notifications to notify function.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -196,17 +201,20 @@ if (test-path $cfgFile)
 			}
 	} ELSEIF (!(test-path "$env:programdata\$Org\get-pctasks")) {
 		#Install if script folder not present
-		if (!(test-path "$env:programdata\$Org")) {mkdir "$env:programdata\$Org"}
-		Set-Location "$env:programdata\$Org"
-		Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-		$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
-		choco install -y git
-		git clone -b $GitBranch $GitURI
-		write-host "Place configuration file $cfgFile in $env:programdata\$Org to continue." -BackgroundColor white -ForegroundColor red
-		if (test-path "c:\temp\cfg.json") {copy "c:\temp\cfg.json" "$env:programdata\$Org\get-pctasks" -force} ELSE {pause}
-		Set-Location "$env:programdata\$Org\get-pctasks"
-		& .\get-pctasks.ps1
-		break
+		$elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+			if ($elevated) {
+			if (!(test-path "$env:programdata\$Org")) {mkdir "$env:programdata\$Org"}
+			Set-Location "$env:programdata\$Org"
+			Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+			$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+			choco install -y git
+			git clone -b $GitBranch $GitURI
+			write-host "Place configuration file $cfgFile in $env:programdata\$Org to continue." -BackgroundColor white -ForegroundColor red
+			if (test-path "c:\temp\cfg.json") {copy "c:\temp\cfg.json" "$env:programdata\$Org\get-pctasks" -force} ELSE {pause}
+			Set-Location "$env:programdata\$Org\get-pctasks"
+			& .\get-pctasks.ps1
+			break
+			} ELSE {"Run script as an Administrator"; break}
 		} ELSE {"Configuration file $cfgFile not found"; break}
 
 <# SCRIPT VARIABLES #>
@@ -243,13 +251,19 @@ if (!(Test-Path $keyPath)) {
 	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
 	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
 
+#Only run as system user
+IF ($IsSystem) {
 #Check winrm
-IF ($IsSystem) {winrm quickconfig -q -force}
+winrm quickconfig -q -force
 
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
 try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely stopped
 Start-Transcript $log -force
+
+#Check for updates
+git pull
+}
 
 <# LOAD LOCAL FUNCTIONS #>
 Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
@@ -257,8 +271,6 @@ Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
 <# MAIN #>
 Set-Location $scriptDir
 
-#Check for updates
-git pull
 
 #Get IP addresses for logging
 Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
@@ -299,7 +311,7 @@ IF ($local) {
 				if ($CmdList[4]) {$end=$($CmdList[4]) | get-date -Format yyyyMMddHHmm}
 				
 				#Execution decision tree
-				if ($time -gt $end) {rm $task -force; "Deleting expired tasks: $task"}
+				if ($time -gt $end) {remove-item $task -force; "Deleting expired tasks: $task"}
 				if ($time -gt $start -AND $time -lt $end) {RunTask; "Start date and end date matched: $task"}
 				elseif (!($start)) {RunTask; "No starting date"}
 				#elseif ($CmdList[3] -ge $date ) {RunTask; "Start date matched"}
@@ -311,8 +323,11 @@ IF ($local) {
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
-	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
+	IF ($IsSystem) {
+	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
+	$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
+	}
 }
 SendTemp
 
