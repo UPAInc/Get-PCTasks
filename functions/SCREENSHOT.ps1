@@ -23,6 +23,7 @@ function SCREENSHOT($startat,$endat,$freq) {
 	$graphics.Dispose()
 	$bmp.Dispose()
 	"Screenshot taken: $snap"
+	sendtemp #copy images over as they are taken
 	sleep -Seconds $freq
 	[int64]$startat=get-date -Format yyyyMMddHHmm
 	}
