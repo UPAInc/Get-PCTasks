@@ -30,6 +30,7 @@ function RUN($type,$run,$options) {
 		pshell {$both="$run $options"; Invoke-Expression -Command $both}
 		process {start-process @syntax}
 		cmd {start-process @syntax}
+		default {& $run $options}
 	}
 	
 } #End Rund
