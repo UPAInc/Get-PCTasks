@@ -10,7 +10,7 @@ function RunTask() {
 				& c:\windows\system32\schtasks.exe /run /i /tn "get-pctasks-assist"
 				} ELSE {
 					switch ($function) {
-						notify {& $function -options $options}
+						notify {& $function $options}
 						RunAsUser {& RUN -type $action -run $options}
 						SCREENGRAB {& $function -alt $action -rectime $options}
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}

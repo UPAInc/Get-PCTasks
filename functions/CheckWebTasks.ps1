@@ -12,14 +12,14 @@ function CheckWebTasks() {
 		$CmdList=$CmdList.split(';')
 		} ELSE {
 			#Non-JSON
-			$CmdList=$WebCommand.split(';')
+			$CmdList=$WebCommand.split(';').trim()
 			}
 
 	#Create task runbook
 	if ($CmdList[0] -eq 'Cancel') {
 		Remove-Item "$TaskDir\*.*" -force -verbose
 		}
-	$CmdList | out-file $runbook
+	if ($CmdList) {$CmdList | out-file $runbook}
 	$hash=(Get-FileHash -Algorithm sha1 $runbook).hash
 	return $hash
 }

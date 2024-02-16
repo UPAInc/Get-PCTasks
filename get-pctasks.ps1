@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.6.4
+.VERSION 2.6.5
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -116,6 +116,8 @@ For more information, please refer to <http://unlicense.org/>
 		Sectioned things to only run as system user.
 		Added admin check to script install.
 		Added WPF notifications to notify function.
+	202402161135 - 2.6.5
+		Added IsSystem check when creating tasks and deleting.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -283,19 +285,22 @@ IF ($local) {
 	} ELSE {
 
 		#Gets tasks for this PC and returns hash of current task for file comparison
-		$WebTask=CheckWebTasks
+		IF ($IsSystem) {$WebTask=CheckWebTasks}
 
 		#Get tasks saved on disk
 		$taskbooks=get-childitem $TaskDir\*.task | % fullname
+		
 		if ($taskbooks) {
 			$tasks=@()
 			foreach ($file in $taskbooks) {
+				
 				$hash1=(Get-FileHash -Algorithm sha1 $file).hash
-				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {remove-item $file; "Dup hash found, deleting $file"} ELSE {
+				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file; "Dup hash found, deleting $file"}} ELSE {
 					$tasks+=$file
-				}
-			}
-		} ELSE {remove-variable tasks}
+				} #end if webtask
+			} #end foreach
+		} ELSE {remove-variable tasks} 
+		
 
 		if ($tasks) {
 			foreach ($task in $tasks) {
@@ -316,9 +321,9 @@ IF ($local) {
 				elseif (!($start)) {RunTask; "No starting date"}
 				#elseif ($CmdList[3] -ge $date ) {RunTask; "Start date matched"}
 				remove-variable CmdList, time
-			}
-		}
-			}#End if local
+			} #end foreach
+		} #end if tasks
+	}#End local ELSE
 
 <# Post Main Items #>
 Stop-Transcript
