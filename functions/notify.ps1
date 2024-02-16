@@ -19,7 +19,9 @@ Add-Type -AssemblyName PresentationCore,PresentationFramework
 $ButtonType = [System.Windows.MessageBoxButton]::OK
 $MessageIcon = [System.Windows.MessageBoxImage]::Information
 $MessageTitle = 'Notification from UPA Support'
-$MessageBody = "$action"
+$MessageBody = @"
+$action
+"@
 
 #Show the pop-up message
 [System.Windows.MessageBox]::Show($MessageBody,$MessageTitle,$ButtonType,$MessageIcon)
