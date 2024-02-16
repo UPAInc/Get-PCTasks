@@ -15,7 +15,7 @@ function RunTask() {
 						SCREENGRAB {& $function -alt $action -rectime $options}
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
 						SendTemp {& $function -type $action}
-					} #End Switch
+						} #End Switch
 					} #End ELSE
 	} #End RTUserCheck
 		
