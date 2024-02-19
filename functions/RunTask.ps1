@@ -1,9 +1,11 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
-function RunTask() {
+function RunTask($calltask) {
 	"Running $function $action $options from $start to $end"
 	#For commands that must run as the user and not system
 	$who=whoami
+	if ($calltask) {$function=$calltask}
+	
 	function RTUserCheck() {
 		if ($who -match "system") {
 				#start helper task
@@ -15,12 +17,14 @@ function RunTask() {
 						SCREENGRAB {& $function -alt $action -rectime $options}
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
 						SendTemp {& $function -type $action}
+						get-pwdfyi {& $function}
 						} #End Switch
 					} #End ELSE
 	} #End RTUserCheck
 		
 	switch ($function) {
 		ECHOTEST {& $function $CmdList}
+		get-pwdfyi {RTUserCheck}
 		LOCKDESKTOP {& $function}
 		DOWNLOAD {& $function -type $action -url $options}
 		RUN {& $function -type $action -run $options}
