@@ -118,6 +118,11 @@ For more information, please refer to <http://unlicense.org/>
 		Added WPF notifications to notify function.
 	202402161135 - 2.6.5
 		Added IsSystem check when creating tasks and deleting.
+	202402191015 - 2.7
+		Added get-pwdfyi function, added to run with each script Run
+		Added param to call a task from RunTask
+		Added checks to CheckWebTasks to stop processing empty vars
+		
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -299,7 +304,7 @@ IF ($local) {
 					$tasks+=$file
 				} #end if webtask
 			} #end foreach
-		} ELSE {remove-variable tasks} 
+		} ELSE {remove-variable tasks -ErrorAction SilentlyContinue} 
 		
 
 		if ($tasks) {
@@ -324,6 +329,9 @@ IF ($local) {
 			} #end foreach
 		} #end if tasks
 	}#End local ELSE
+
+<#Run each time #>
+RunTask -calltask "get-pwdfyi"
 
 <# Post Main Items #>
 Stop-Transcript
