@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.6.5
+.VERSION 2.7.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -118,6 +118,12 @@ For more information, please refer to <http://unlicense.org/>
 		Added WPF notifications to notify function.
 	202402161135 - 2.6.5
 		Added IsSystem check when creating tasks and deleting.
+	202402191015 - 2.7
+		Added get-pwdfyi function, added to run with each script Run
+		Added param to call a task from RunTask
+		Added checks to CheckWebTasks to stop processing empty vars
+	202402191054 - 2.7.1
+		Updated log vars to capture user-level logging.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -232,8 +238,10 @@ $Script:RunDir=$ScriptDir
 $BinDir="$RunDir\bin"
 #if (!(test-path $BinDir)) {mkdir $BinDir}
 IF ($IsSystem) {$TempDir="$RunDir\Temp"} ELSE {$TempDir="$env:temp\$org"; mkdir $TempDir -ErrorAction SilentlyContinue}
-$LogDir="$RunDir\Log"
-$log="$LogDir\$script"+".log"
+IF ($IsSystem) {$LogDir="$RunDir\Log"} ELSE {$LogDir=$TempDir}
+IF ($IsSystem) {$log="$LogDir\$script"+".log"} ELSE {$log="$LogDir\$script"+".user.log"}
+#$LogDir="$RunDir\Log"
+#$log="$LogDir\$script"+".log"
 $TaskDir="$RunDir\task"
 $filenameDate=get-date -Format yyyyMMddmmss
 $runbook="$TaskDir\$filenameDate.task" #name cannot change per instance
@@ -253,15 +261,15 @@ if (!(Test-Path $keyPath)) {
 	New-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1 -PropertyType DWord
 	} ELSE {Set-ItemProperty -Path $keyPath -Name "DisableFirstRunCustomize" -Value 1}
 
-#Only run as system user
-IF ($IsSystem) {
-#Check winrm
-winrm quickconfig -q -force
-
 <# Script Logging #>
 if (!(test-path $LogDir)) {mkdir $LogDir}
 try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely stopped
 Start-Transcript $log -force
+
+#Only run as system user
+IF ($IsSystem) {
+#Check winrm
+winrm quickconfig -q -force
 
 #Check for updates
 git pull
@@ -299,7 +307,7 @@ IF ($local) {
 					$tasks+=$file
 				} #end if webtask
 			} #end foreach
-		} ELSE {remove-variable tasks} 
+		} ELSE {remove-variable tasks -ErrorAction SilentlyContinue} 
 		
 
 		if ($tasks) {
@@ -324,6 +332,9 @@ IF ($local) {
 			} #end foreach
 		} #end if tasks
 	}#End local ELSE
+
+<#Run each time #>
+RunTask -calltask "get-pwdfyi"
 
 <# Post Main Items #>
 Stop-Transcript
