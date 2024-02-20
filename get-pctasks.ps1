@@ -217,7 +217,9 @@ if (test-path $cfgFile)
 			$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
 			choco install -y git
 			git clone -b $GitBranch $GitURI
-			write-host "Place configuration file $cfgFile in $env:programdata\$Org to continue." -BackgroundColor white -ForegroundColor red
+   			sleep 1
+   			if (!(test-path "$env:programdata\$Org\get-pctasks")) {"git clone failed, please try again"; pause; break}
+			write-host "Place configuration file $cfgFile in $env:programdata\$Org\get-pctasks\ to continue." -BackgroundColor white -ForegroundColor red
 			if (test-path "c:\temp\cfg.json") {copy "c:\temp\cfg.json" "$env:programdata\$Org\get-pctasks" -force} ELSE {pause}
 			Set-Location "$env:programdata\$Org\get-pctasks"
 			& .\get-pctasks.ps1
