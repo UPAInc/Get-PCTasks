@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.6
+.VERSION 1.7
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -104,6 +104,7 @@ function pcinfo() {
 	#Software
 	$apps1=(Get-WMIObject -computername $pc -Query "SELECT * FROM Win32_Product" | ? {$_.name -notlike '*Microsoft*'} | select name,version,installdate | sort -Property name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" 
 	$apps2=(Get-AppxPackage | ? {$_.name -notlike '*Microsoft*'} | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
+	if (!($apps2)) {$apps2="No non-MS Appx Packages"}
 	$apps="$apps1" + ';' + "$apps2" | trim-length 31950
 	$updates1=(get-hotfix -computername $pc | select HotFixID, InstalledOn | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
 	$updates2=(Get-WindowsPackage -Online | ? {$_.ReleaseType -eq 'Update'} | select PackageName,InstallTime | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
@@ -146,7 +147,11 @@ if (test-path $file) {$previousinfo=import-csv $file} ELSE {$previousinfo=""; $n
 $infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property 'Local IP'
 $infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
 $infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
-$newinfo
+"Checking for pc info changes..."
+$infochanged1
+$infochanged2
+$infochanged3
+#$newinfo
 if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 	$newinfo | export-csv $file -notypeinformation -Force
 	IF ($SaveToWeb) {Web $newinfo}
@@ -164,6 +169,7 @@ if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 				"Content-Type" = "application/json"
 				'id'="$crmID"
 			}
+			"Updating CRM record..."
 			Invoke-WebRequest -Method POST -Uri $UpdateCRMURI -Headers $Header -body $body | select StatusCode #Update CRM record
 		} ELSE {
 			"No CRM ID found, creating record..."
