@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1
+.VERSION 1.1
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -7,7 +7,10 @@
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc="$env:computername"
-$file="..\.\$script.csv"
+$file="..\$script.csv"
+
+if (!($assetSerialURI)) {"Update $cfgFile"; break}
+if (!($assetNameURI)) {"Update $cfgFile"; break}
 
 ##Functions##
 function Trim-Length {
