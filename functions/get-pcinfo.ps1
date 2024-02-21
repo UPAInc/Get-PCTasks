@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.4
+.VERSION 1.5
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -8,7 +8,9 @@ $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsS
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc="$env:computername"
 $file=".\$script.csv"
-
+$SaveToWeb=$True
+$UpdateCRM=$True
+	
 ##Functions##
 function Trim-Length {
 param (
@@ -148,7 +150,7 @@ $newinfo
 if ($infochanged1 -or $infochanged2 -or $infochanged3) {$newinfo | export-csv $file -notypeinformation -Force} ELSE {"PC info did not change"}
 
 
-IF ($SaveToWeb) {Web -info $newinfo}
+IF ($SaveToWeb) {Web $newinfo}
 IF ($UpdateCRM) {
 		#Attempts to find CRM record by Serial number then hostname if not found. If no ID returns, create a new record.
 		$body=$newinfo | ConvertTo-Json #Convert inventory to web json format
@@ -172,9 +174,5 @@ IF ($UpdateCRM) {
 
 }
 
-if ($IsSystem -AND $assetSerialURI -AND $assetNameURI) {
-	$SaveToWeb=$True
-	$UpdateCRM=$True
-	}
-	
+
 write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black
