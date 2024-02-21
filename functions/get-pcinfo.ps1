@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.1
+.VERSION 1.2
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -8,9 +8,6 @@ $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsS
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc="$env:computername"
 $file="..\$script.csv"
-
-if (!($assetSerialURI)) {"Update $cfgFile"; break}
-if (!($assetNameURI)) {"Update $cfgFile"; break}
 
 ##Functions##
 function Trim-Length {
@@ -175,9 +172,9 @@ IF ($UpdateCRM) {
 
 }
 
-if ($IsSystem) {
+if ($IsSystem -AND $assetSerialURI -AND $assetNameURI) {
 	$SaveToWeb=$True
 	$UpdateCRM=$True
-	get-pcinfo
-}
+	}
+	
 write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black
