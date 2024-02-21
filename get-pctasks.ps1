@@ -342,7 +342,7 @@ IF ($local) {
 
 <#Run each time #>
 RunTask -calltask "get-pwdfyi"
-RunTask -calltask "get-pcinfo"
+get-pcinfo
 
 <# Post Main Items #>
 Stop-Transcript
