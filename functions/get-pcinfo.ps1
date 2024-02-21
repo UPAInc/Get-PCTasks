@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.2
+.VERSION 1.4
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -7,7 +7,7 @@
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc="$env:computername"
-$file="..\$script.csv"
+$file=".\$script.csv"
 
 ##Functions##
 function Trim-Length {
@@ -34,7 +34,7 @@ $body=@"
 "@
 
 	#$body #Uncomment to troubleshoot.
-	invoke-webrequest -method POST -uri $URI -headers $header -body $body | select statuscode
+	invoke-webrequest -method POST -uri $AssetWebURI -headers $header -body $body | select statuscode
 }
 
 function get-crmid {
@@ -44,22 +44,22 @@ param(
 )
 
 	if ($serial) {
-		$uri=$assetSerialURI
+		
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Serial_Number'="$serial"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $uri -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetSerialURI -Headers $Header).content | ConvertFrom-Json).id
 		return $crmID
 	}
 	
 	if ($Name) {
-		$uri=$assetNameURI
+		
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Name'="$name"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $uri -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetNameURI -Headers $Header).content | ConvertFrom-Json).id
 		return $crmID
 	}
 }
@@ -145,7 +145,7 @@ $infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $n
 $infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
 $infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
 $newinfo
-if ($infochanged1 -or $infochanged2 -or $infochanged3) {$newinfo | export-csv $file -notypeinformation -Force} ELSE {"PC info did not change"; break}
+if ($infochanged1 -or $infochanged2 -or $infochanged3) {$newinfo | export-csv $file -notypeinformation -Force} ELSE {"PC info did not change"}
 
 
 IF ($SaveToWeb) {Web -info $newinfo}
