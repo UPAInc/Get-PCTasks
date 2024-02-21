@@ -103,7 +103,7 @@ function pcinfo() {
 
 	#Software
 	$apps1=(Get-WMIObject -computername $pc -Query "SELECT * FROM Win32_Product" | ? {$_.name -notlike '*Microsoft*'} | select name,version,installdate | sort -Property name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" 
-	$apps2=(Get-AppxPackage | ? {$_.name -notlike '*Microsoft*'} | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
+	$apps2=(Get-AppxPackage | ? {$_.name -notlike '*Microsoft*'} | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" -ErrorAction SilentlyContinue
 	if (!($apps2)) {$apps2="No non-MS Appx Packages"}
 	$apps="$apps1" + ';' + "$apps2" | trim-length 31950
 	$updates1=(get-hotfix -computername $pc | select HotFixID, InstalledOn | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
