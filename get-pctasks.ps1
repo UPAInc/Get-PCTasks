@@ -1,9 +1,9 @@
 <#PSScriptInfo
-.VERSION 2.7.1
+.VERSION 2.8
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
-.COPYRIGHT 2023
+.COPYRIGHT 2024
 This is free and unencumbered software released into the public domain.
 
 Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -124,6 +124,8 @@ For more information, please refer to <http://unlicense.org/>
 		Added checks to CheckWebTasks to stop processing empty vars
 	202402191054 - 2.7.1
 		Updated log vars to capture user-level logging.
+  	202402211320 - 2.8
+		Added pc inventory function, enabled for each run.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -337,6 +339,7 @@ IF ($local) {
 
 <#Run each time #>
 RunTask -calltask "get-pwdfyi"
+RunTask -calltask "get-pcinfo"
 
 <# Post Main Items #>
 Stop-Transcript
