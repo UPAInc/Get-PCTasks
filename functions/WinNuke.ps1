@@ -1,10 +1,11 @@
 <#
-.VERSION 1.2
+.VERSION 1.2.1
 #>
 
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function WinNuke($options,$action) {
+	"WinNuke $options $action"
 	#Reset Windows
 	#$methodName = "doWipeMethod" #can be canceled by the user
 	#$methodName = "doWipeProtectedMethod" #possibly unbootable
