@@ -13,7 +13,6 @@ $UpdateCRM=$True
 $Header = @{
 	"Content-Type" = "application/json"
 	}
-	
 ##Functions##
 function Trim-Length {
 param (
@@ -35,7 +34,6 @@ param(
 )
 
 	if ($serial) {
-		
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Serial_Number'="$serial"
@@ -45,7 +43,6 @@ param(
 	}
 	
 	if ($Name) {
-		
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Name'="$name"
