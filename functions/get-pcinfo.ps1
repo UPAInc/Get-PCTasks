@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.7
+.VERSION 1.11
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -10,6 +10,9 @@ $pc="$env:computername"
 $file=".\$script.csv"
 $SaveToWeb=$false
 $UpdateCRM=$True
+$Header = @{
+	"Content-Type" = "application/json"
+	}
 	
 ##Functions##
 function Trim-Length {
@@ -24,20 +27,6 @@ param (
 function CheckWMI() {
 	if (!(get-service winmgmt -ComputerName $pc | ? {$_.status -eq 'Running'})) {start-service winmgmt; sleep 5}
 	}
-
-function Web($info) {
-	$pcattribs=(($info | gm -membertype NoteProperty  | select -ExpandProperty definition).replace('string ','') | convertto-json | out-string).Replace('[','').Replace(']','').Replace("`r`n",'').replace('    ','').Trim()
-	#$pcattribs | out-file .\info.json -force
-	#$htarray=@{"$($raw.name)"="$pcattribs"}
-$body=@"
-{
-"$($info.name)":[$($pcattribs)]
-}
-"@
-
-	#$body #Uncomment to troubleshoot.
-	invoke-webrequest -method POST -uri $AssetWebURI -headers $header -body $body | select statuscode
-}
 
 function get-crmid {
 param(
@@ -89,7 +78,9 @@ function pcinfo() {
 	if ($tpm) {$tpm=$tpm.Substring(0,3)} ELSE {$tpm="N/A"}
 	
 	#Networking
-	$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
+	#bug in powershell 5.1 pipeline, updated to wmi.
+	#$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
+	$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
 	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
 	$PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
 	
@@ -103,8 +94,7 @@ function pcinfo() {
 
 	#Software
 	$apps1=(Get-WMIObject -computername $pc -Query "SELECT * FROM Win32_Product" | ? {$_.name -notlike '*Microsoft*'} | select name,version,installdate | sort -Property name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" 
-	$apps2=(Get-AppxPackage | ? {$_.name -notlike '*Microsoft*'} | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" -ErrorAction SilentlyContinue
-	if (!($apps2)) {$apps2="No non-MS Appx Packages"}
+	$apps2=(Get-AppxPackage | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
 	$apps="$apps1" + ';' + "$apps2" | trim-length 31950
 	$updates1=(get-hotfix -computername $pc | select HotFixID, InstalledOn | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
 	$updates2=(Get-WindowsPackage -Online | ? {$_.ReleaseType -eq 'Update'} | select PackageName,InstallTime | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
@@ -154,7 +144,21 @@ $infochanged3
 #$newinfo
 if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 	$newinfo | export-csv $file -notypeinformation -Force
-	IF ($SaveToWeb) {Web $newinfo}
+	
+	IF ($SaveToWeb) {
+	$pcattribs=(($newinfo | gm -membertype NoteProperty  | select -ExpandProperty definition).replace('string ','') | convertto-json | out-string).Replace('[','').Replace(']','').Replace("`r`n",'').replace('    ','').Trim()
+	#$pcattribs | out-file .\info.json -force
+	#$htarray=@{"$($raw.name)"="$pcattribs"}
+$body1=@"
+{
+"$pc)":[$($pcattribs)]
+}
+"@
+
+#$body #Uncomment to troubleshoot.
+invoke-webrequest -method POST -uri $AssetWebURI -headers $header -body $body1 | select statuscode
+		}
+		
 	IF ($UpdateCRM) {
 		#Attempts to find CRM record by Serial number then hostname if not found. If no ID returns, create a new record.
 		$body=$newinfo | ConvertTo-Json #Convert inventory to web json format
