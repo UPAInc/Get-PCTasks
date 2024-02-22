@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.2
+.VERSION 1.12
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -7,8 +7,12 @@
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc="$env:computername"
-$file="..\$script.csv"
-
+$file=".\$script.csv"
+$SaveToWeb=$false
+$UpdateCRM=$True
+$Header = @{
+	"Content-Type" = "application/json"
+	}
 ##Functions##
 function Trim-Length {
 param (
@@ -23,20 +27,6 @@ function CheckWMI() {
 	if (!(get-service winmgmt -ComputerName $pc | ? {$_.status -eq 'Running'})) {start-service winmgmt; sleep 5}
 	}
 
-function Web($info) {
-	$pcattribs=(($info | gm -membertype NoteProperty  | select -ExpandProperty definition).replace('string ','') | convertto-json | out-string).Replace('[','').Replace(']','').Replace("`r`n",'').replace('    ','').Trim()
-	#$pcattribs | out-file .\info.json -force
-	#$htarray=@{"$($raw.name)"="$pcattribs"}
-$body=@"
-{
-"$($info.name)":[$($pcattribs)]
-}
-"@
-
-	#$body #Uncomment to troubleshoot.
-	invoke-webrequest -method POST -uri $URI -headers $header -body $body | select statuscode
-}
-
 function get-crmid {
 param(
 [Parameter (Mandatory = $false)] [String]$Name,
@@ -44,22 +34,20 @@ param(
 )
 
 	if ($serial) {
-		$uri=$assetSerialURI
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Serial_Number'="$serial"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $uri -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetSerialURI -Headers $Header).content | ConvertFrom-Json).id
 		return $crmID
 	}
 	
 	if ($Name) {
-		$uri=$assetNameURI
 		$Header = @{
 			"Content-Type" = "application/json"
 			'Name'="$name"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $uri -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetNameURI -Headers $Header).content | ConvertFrom-Json).id
 		return $crmID
 	}
 }
@@ -79,7 +67,8 @@ function pcinfo() {
 
 	#Memory
 	$getmemory=Get-CimInstance Win32_PhysicalMemoryArray -ComputerName $pc
-	$memory=$getmemory.MaxCapacity / 1024000
+	#$memory=$getmemory.MaxCapacity / 1024000
+	$memory=[math]::floor((Get-CimInstance Win32_MemoryArray).EndingAddress / 1024000)
 	$MemSlots=$getmemory | foreach MemoryDevices
 
 	#TPM
@@ -87,7 +76,9 @@ function pcinfo() {
 	if ($tpm) {$tpm=$tpm.Substring(0,3)} ELSE {$tpm="N/A"}
 	
 	#Networking
-	$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
+	#bug in powershell 5.1 pipeline, updated to wmi.
+	#$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
+	$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
 	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
 	$PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
 	
@@ -101,7 +92,7 @@ function pcinfo() {
 
 	#Software
 	$apps1=(Get-WMIObject -computername $pc -Query "SELECT * FROM Win32_Product" | ? {$_.name -notlike '*Microsoft*'} | select name,version,installdate | sort -Property name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" 
-	$apps2=(Get-AppxPackage | ? {$_.name -notlike '*Microsoft*'} | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
+	$apps2=(Get-AppxPackage | select name | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
 	$apps="$apps1" + ';' + "$apps2" | trim-length 31950
 	$updates1=(get-hotfix -computername $pc | select HotFixID, InstalledOn | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
 	$updates2=(Get-WindowsPackage -Online | ? {$_.ReleaseType -eq 'Update'} | select PackageName,InstallTime | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";"
@@ -144,12 +135,29 @@ if (test-path $file) {$previousinfo=import-csv $file} ELSE {$previousinfo=""; $n
 $infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property 'Local IP'
 $infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
 $infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
-$newinfo
-if ($infochanged1 -or $infochanged2 -or $infochanged3) {$newinfo | export-csv $file -notypeinformation -Force} ELSE {"PC info did not change"; break}
+"Checking for pc info changes..."
+$infochanged1
+$infochanged2
+$infochanged3
+#$newinfo
+if ($infochanged1 -or $infochanged2 -or $infochanged3) {
+	$newinfo | export-csv $file -notypeinformation -Force
+	
+	IF ($SaveToWeb) {
+	$pcattribs=(($newinfo | gm -membertype NoteProperty  | select -ExpandProperty definition).replace('string ','') | convertto-json | out-string).Replace('[','').Replace(']','').Replace("`r`n",'').replace('    ','').Trim()
+	#$pcattribs | out-file .\info.json -force
+	#$htarray=@{"$($raw.name)"="$pcattribs"}
+$body1=@"
+{
+"$pc)":[$($pcattribs)]
+}
+"@
 
-
-IF ($SaveToWeb) {Web -info $newinfo}
-IF ($UpdateCRM) {
+#$body #Uncomment to troubleshoot.
+invoke-webrequest -method POST -uri $AssetWebURI -headers $header -body $body1 | select statuscode
+		}
+		
+	IF ($UpdateCRM) {
 		#Attempts to find CRM record by Serial number then hostname if not found. If no ID returns, create a new record.
 		$body=$newinfo | ConvertTo-Json #Convert inventory to web json format
 		#$body | out-file .\crm.json -force
@@ -163,18 +171,14 @@ IF ($UpdateCRM) {
 				"Content-Type" = "application/json"
 				'id'="$crmID"
 			}
-			Invoke-WebRequest -Method POST -Uri $UpdateCRMURI -Headers $Header -body $body #Update CRM record
+			"Updating CRM record..."
+			Invoke-WebRequest -Method POST -Uri $UpdateCRMURI -Headers $Header -body $body | select StatusCode #Update CRM record
 		} ELSE {
 			"No CRM ID found, creating record..."
-			Invoke-WebRequest -Method POST -Uri $NewCRMURI -Headers $Header -body $body #Create new CRM record
+			Invoke-WebRequest -Method POST -Uri $NewCRMURI -Headers $Header -body $body | select StatusCode #Create new CRM record
 			}
 	}
-
+	} ELSE {"PC info did not change"}
 }
 
-if ($IsSystem -AND $assetSerialURI -AND $assetNameURI) {
-	$SaveToWeb=$True
-	$UpdateCRM=$True
-	}
-	
 write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black

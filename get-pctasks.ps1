@@ -1,9 +1,9 @@
 <#PSScriptInfo
-.VERSION 2.7.1
+.VERSION 2.8.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
-.COPYRIGHT 2023
+.COPYRIGHT 2024
 This is free and unencumbered software released into the public domain.
 
 Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -124,6 +124,10 @@ For more information, please refer to <http://unlicense.org/>
 		Added checks to CheckWebTasks to stop processing empty vars
 	202402191054 - 2.7.1
 		Updated log vars to capture user-level logging.
+  	202402211320 - 2.8
+		Added pc inventory function, enabled for each run.
+  	202402211400 - 2.8.1
+   		Copy cfg from local fs if avil.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -207,6 +211,7 @@ if (test-path $cfgFile)
 				$cfg[$setting.Name] = $value
 				Set-Variable -Name $setting.Name -Value $Value
 			}
+   		if ($GitBranch -eq "main" -AND (test-path "\\$RemoteFS\$RemoteFSShare\cfg.json")) {copy "\\$RemoteFS\$RemoteFSShare\cfg.json" .\ -force} #get latest cfg file
 	} ELSEIF (!(test-path "$env:programdata\$Org\get-pctasks")) {
 		#Install if script folder not present
 		$elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -337,6 +342,7 @@ IF ($local) {
 
 <#Run each time #>
 RunTask -calltask "get-pwdfyi"
+IF ($IsSystem) {get-pcinfo}
 
 <# Post Main Items #>
 Stop-Transcript

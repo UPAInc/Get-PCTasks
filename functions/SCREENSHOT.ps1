@@ -1,7 +1,7 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
-
+$ssactive="$env:USERPROFILE\ss.active"
+Remove-Item $ssactive -force -ErrorAction SilentlyContinue
 function SCREENSHOT($startat,$endat,$freq) {
-	$ssactive="$env:USERPROFILE\ss.active"
 	if (!(test-path $ssactive)) {
 	#From https://stackoverflow.com/questions/2969321/how-can-i-do-a-screen-capture-in-windows-powershell
 	if (!($endat)) {$endat=$end}
