@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.11
+.VERSION 1.12
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -70,7 +70,8 @@ function pcinfo() {
 
 	#Memory
 	$getmemory=Get-CimInstance Win32_PhysicalMemoryArray -ComputerName $pc
-	$memory=$getmemory.MaxCapacity / 1024000
+	#$memory=$getmemory.MaxCapacity / 1024000
+	$memory=[math]::floor((Get-CimInstance Win32_MemoryArray).EndingAddress / 1024000)
 	$MemSlots=$getmemory | foreach MemoryDevices
 
 	#TPM
