@@ -4,8 +4,8 @@
 
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
-function WinNuke($options,$actions) {
-	"WinNuke $options $actions"
+function WinNuke($options,$action) {
+	"WinNuke $options $action"
 	#Reset Windows
 	#$methodName = "doWipeMethod" #can be canceled by the user
 	#$methodName = "doWipeProtectedMethod" #possibly unbootable
@@ -17,7 +17,7 @@ function WinNuke($options,$actions) {
 	$param = [Microsoft.Management.Infrastructure.CimMethodParameter]::Create("param", "", "String", "In")
 	$params.Add($param)
 	$instance = Get-CimInstance -Namespace $namespaceName -ClassName $className -Filter "ParentID='./Vendor/MSFT' and InstanceID='RemoteWipe'"
-	if ($actions -eq 'Confirm') {"WinNuke invoked..."; $session.InvokeMethod($namespaceName, $instance, $methodName, $params)} ELSE {$Alert="WinNuke action was not confirmed!"}
+	if ($action -eq 'Confirm') {"WinNuke invoked..."; $session.InvokeMethod($namespaceName, $instance, $methodName, $params)} ELSE {$Alert="WinNuke action was not confirmed!"}
 	if ($alert) {return $alert} ELSE {return "WinNuke Confirmed"}
 }
 
