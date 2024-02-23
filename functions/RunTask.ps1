@@ -38,6 +38,8 @@ function RunTask() {
 		WindowsUpdate {& $function}
 		WinNuke {& $function -action $action -options $options}
 	} #End switch
+"RT is executing $function $action $options"
+return
 }
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
