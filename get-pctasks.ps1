@@ -310,7 +310,7 @@ IF ($local) {
 			foreach ($file in $taskbooks) {
 				
 				$hash1=(Get-FileHash -Algorithm sha1 $file).hash
-				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file; "Dup hash found, deleting $file"}} ELSE {
+				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file -force; "Dup hash found, deleting $file"}} ELSE {
 					$tasks+=$file
 				} #end if webtask
 			} #end foreach
