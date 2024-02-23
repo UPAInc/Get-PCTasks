@@ -38,7 +38,7 @@ function RunTask() {
 		power {& $function -type $action}
 		sendtemp {RTUserCheck}
 		WindowsUpdate {& $function}
-		WinNuke {& $function -action $action -options $options}
+		WinReset {& $function -action $action -options $options}
 	} #End switch
 "RT is executing $function $action $options"
 return
