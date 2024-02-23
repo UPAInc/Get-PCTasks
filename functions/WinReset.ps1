@@ -14,9 +14,9 @@ function WinReset($options,$action) {
         sleep 10
         #$methodName = "doWipeMethod" #can be canceled by the user
         #$methodName = "doWipeProtectedMethod" #possibly unbootable
-        if ($options -eq 'safe') {$methodName = "doWipeMethod"} ELSE {$methodName = "doWipeProtectedMethod"}
         $namespaceName = "root\cimv2\mdm\dmmap"
 	$className = "MDM_RemoteWipe"
+ 	if ($options -eq 'safe') {$methodName = "doWipeMethod"} ELSE {$methodName = "doWipeProtectedMethod"}
 	$session = New-CimSession
 	$params = New-Object Microsoft.Management.Infrastructure.CimMethodParametersCollection
 	$param = [Microsoft.Management.Infrastructure.CimMethodParameter]::Create("param", "", "String", "In")
