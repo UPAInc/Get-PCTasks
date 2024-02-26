@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.8.2
+.VERSION 2.8.3
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -343,10 +343,15 @@ IF ($local) {
 <#Run each time #>
 IF ($IsSystem)
 	{
-	"Check password expiration..."; RunTask -calltask "get-pwdfyi"
+	"Check password expiration..."; RunTask -calltask "get-pwdfyi" #starts user mode
 	"Checking pc info..."; get-pcinfo
 	}
 
+IF (!($IsSystem))
+	{
+	get-pwdfyi
+ 	}
+  
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
