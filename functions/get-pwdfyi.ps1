@@ -2,7 +2,8 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function get-pwdfyi(){
 $IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
-$netcheck = Test-Connection "$env:USERDNSDOMAIN" -Quiet -Count 1 #Check to see if a domain controller is avail.
+$dc=("$env:LOGONSERVER" + '.' +"$env:USERDNSDOMAIN").Replace('\\','')
+$netcheck = Test-Connection $dc -Quiet -Count 1 #Check to see if a domain controller is avail.
 
 #Check for notify mod
 $script:chknotify=Get-Module | ? {$_.name -eq 'notify'} | select name
