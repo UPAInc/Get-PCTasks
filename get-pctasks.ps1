@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.8.1
+.VERSION 2.8.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -341,7 +341,7 @@ IF ($local) {
 	}#End local ELSE
 
 <#Run each time #>
-RunTask -calltask "get-pwdfyi"
+IF (!($IsSystem)) {RunTask -calltask get-pwdfyi}
 IF ($IsSystem) {get-pcinfo}
 
 <# Post Main Items #>
