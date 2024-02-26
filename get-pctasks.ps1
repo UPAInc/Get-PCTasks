@@ -341,8 +341,8 @@ IF ($local) {
 	}#End local ELSE
 
 <#Run each time #>
-IF (!($IsSystem)) {RunTask -calltask get-pwdfyi}
-IF ($IsSystem) {get-pcinfo}
+IF (!($IsSystem)) {"Check password expiration..."; RunTask -calltask "get-pwdfyi"}
+IF ($IsSystem) {"Checking pc info..."; get-pcinfo}
 
 <# Post Main Items #>
 Stop-Transcript
