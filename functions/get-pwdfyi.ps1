@@ -7,7 +7,7 @@ $netcheck = Test-Connection $dc -Quiet -Count 2 #Check to see if a domain contro
 
 #Check for notify mod
 $script:chknotify=Get-Module | ? {$_.name -eq 'notify'} | select name
-if (!($chknotify)) {import-module "C:\programdata\$org\get-pctasks\functions\notify.ps1"}
+if (!($chknotify)) {import-module "C:\programdata\$org\get-pctasks\functions\notify.ps1" -force}
 
 #Set the number of days before expiration for the notice to start.
 $NotifyDays=-7
@@ -44,7 +44,7 @@ Test your new password by locking and unlocking your Desktop.
 if (!($IsSystem)) {
 		if ($netcheck) {
 			if ($today -le $expire -AND $today -ge $noticedate) {notify $MessageBody} ELSE {"No notice..."}
-		} ELSE {"Can't contact $dc"}
+		} ELSE {"Can't contact $dc."}
 }
 return
 }
