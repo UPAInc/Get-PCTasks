@@ -350,6 +350,7 @@ IF ($IsSystem)
 IF (!($IsSystem))
 	{
 	get-pwdfyi
+ 	SendTemp
  	}
   
 <# Post Main Items #>
@@ -361,6 +362,4 @@ if (!($local)) {
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
 }
-SendTemp
-
 #EOF
