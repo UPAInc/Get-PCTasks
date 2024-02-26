@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.8.1
+.VERSION 2.8.3
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -310,7 +310,7 @@ IF ($local) {
 			foreach ($file in $taskbooks) {
 				
 				$hash1=(Get-FileHash -Algorithm sha1 $file).hash
-				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file; "Dup hash found, deleting $file"}} ELSE {
+				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file -force; "Dup hash found, deleting $file"}} ELSE {
 					$tasks+=$file
 				} #end if webtask
 			} #end foreach
@@ -341,18 +341,25 @@ IF ($local) {
 	}#End local ELSE
 
 <#Run each time #>
-RunTask -calltask "get-pwdfyi"
-IF ($IsSystem) {get-pcinfo}
+IF ($IsSystem)
+	{
+	"Check password expiration..."; RunTask -calltask "get-pwdfyi" #starts user mode
+	"Checking pc info..."; get-pcinfo
+	}
 
+IF (!($IsSystem))
+	{
+	get-pwdfyi
+ 	SendTemp
+ 	}
+  
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
 	IF ($IsSystem) {
-	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
-	$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
+	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
+	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
 }
-SendTemp
-
 #EOF

@@ -1,9 +1,14 @@
 {
-    "Org": "UPA",
+    "Org": "OrgName",
 	"GitURI":  "https://github.com/UPAInc/Get-PCTasks",
 	"GitBranch": "main",
 	"CnCURI": "https://",
 	"ResultsURI": "https://",
+	"assetSerialURI":"https://",
+	"assetNameURI":"https://",
+	"UpdateCRMURI":"https://",
+	"NewCRMURI":"https://",
+	"AssetWebURI":"https://",
 	"RemoteFS": "FileServerName",
 	"RemoteFSShare": 'FileServerShare'
 }

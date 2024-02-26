@@ -2,11 +2,12 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function get-pwdfyi(){
 $IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
-$netcheck = Test-Connection "$env:USERDNSDOMAIN" -Quiet -Count 1 #Check to see if a domain controller is avail.
+$dc=("$env:LOGONSERVER" + '.' +"$env:USERDNSDOMAIN").Replace('\\','')
+$netcheck = Test-Connection $dc -Quiet -Count 2 #Check to see if a domain controller is avail.
 
 #Check for notify mod
 $script:chknotify=Get-Module | ? {$_.name -eq 'notify'} | select name
-if (!($chknotify)) {import-module "C:\programdata\$org\get-pctasks\functions\notify.ps1"}
+if (!($chknotify)) {import-module "C:\programdata\$org\get-pctasks\functions\notify.ps1" -force}
 
 #Set the number of days before expiration for the notice to start.
 $NotifyDays=-7
@@ -43,7 +44,7 @@ Test your new password by locking and unlocking your Desktop.
 if (!($IsSystem)) {
 		if ($netcheck) {
 			if ($today -le $expire -AND $today -ge $noticedate) {notify $MessageBody} ELSE {"No notice..."}
-		} ELSE {"Can't contact the $env:USERDNSDOMAIN domain"}
+		} ELSE {"Can't contact $dc."}
 }
 return
 }

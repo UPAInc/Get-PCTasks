@@ -1,5 +1,7 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
+$Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 
+IF ($IsSystem) {
 $TaskXML1=".\temp\get-pctasks.xml"
 $TaskXML2=".\temp\get-pctasks-assist.xml"
 
@@ -31,5 +33,6 @@ if ($STDate -eq $FileDate)
 		stdelete
 		stmake
 	}
-	
+} #End if system ELSE {"Skipping. Not System user..."}
+
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
