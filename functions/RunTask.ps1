@@ -12,6 +12,7 @@ function RunTask() {
 				& c:\windows\system32\schtasks.exe /run /i /tn "get-pctasks-assist"
 				} ELSE {
 					switch ($function) {
+     						get-pwdfyi {& $function}
 						notify {& $function $options}
 						RunAsUser {& RUN -type $action -run $options}
 						SCREENGRAB {& $function -alt $action -rectime $options}
@@ -26,6 +27,7 @@ function RunTask() {
 		ECHOTEST {& $function $CmdList}
 		LOCKDESKTOP {& $function}
 		DOWNLOAD {& $function -type $action -url $options}
+  		get-pwdfyi {RTUserCheck}
 		RUN {& $function -type $action -run $options}
 		RunAsUser {RTUserCheck}
 		DISABLEAD {& $function -mode $action -reboot $options}
