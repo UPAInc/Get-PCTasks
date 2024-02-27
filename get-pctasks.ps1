@@ -360,7 +360,7 @@ if (!($local)) {
  	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
-}
+ 
 IF (!($IsSystem))
 	{
  	SendTemp
