@@ -15,7 +15,7 @@ function sendtemp($type) {
 			IF ($TestFS) {
 				if (!(test-path $FSPath)) {mkdir $FSPath -force -verbose}
 				foreach ($file in $list) {move $file $FSPath -force -verbose -ErrorAction:SilentlyContinue}
-				copy "$LogDir\get-pctasks.log" $FSPath -force -verbose -ErrorAction:SilentlyContinue
+				copy "$Log" $FSPath -force -verbose -ErrorAction:SilentlyContinue
 				}
 			}
 		

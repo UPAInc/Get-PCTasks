@@ -1,3 +1,9 @@
+<#
+.VERSION 2
+.CHANGES
+	Added job to make dialog box async.
+#>
+
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function notifyBT($action) {
@@ -5,7 +11,7 @@ function notifyBT($action) {
 	$toastParams = @{
     Text = "$options"
     Header = (New-BTHeader -Id 1 -Title "Notification from UPA Support")
-	Applogo = "$bindir\logosmall.png"
+	Applogo = "c:\programdata\$org\get-pctasks\bin\logosmall.png"
 	SnoozeAndDismiss = $true
 	Sound = "SMS"
 	}
@@ -14,6 +20,8 @@ function notifyBT($action) {
 			
 }
 
+$lib = {
+param($action)
 function notifyWPF($action) {
 Add-Type -AssemblyName PresentationCore,PresentationFramework
 $ButtonType = [System.Windows.MessageBoxButton]::OK
@@ -25,10 +33,12 @@ $action
 
 #Show the pop-up message
 [System.Windows.MessageBox]::Show($MessageBody,$MessageTitle,$ButtonType,$MessageIcon)
-}
+	}	
+ }
 
 function notify($action) {
-	notifyWPF "$action"
+	#notifyWPF "$action"
+ 	Start-Job {notifywpf -action $args} -InitializationScript $lib -ArgumentList $action
 	notifyBT "$action"
 }
 

@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.8.3
+.VERSION 2.8.4
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -343,23 +343,26 @@ IF ($local) {
 <#Run each time #>
 IF ($IsSystem)
 	{
-	"Check password expiration..."; RunTask -calltask "get-pwdfyi" #starts user mode
 	"Checking pc info..."; get-pcinfo
+ 	"Check password expiration..."; RunTask -calltask "get-pwdfyi" #starts user mode
 	}
 
 IF (!($IsSystem))
 	{
 	get-pwdfyi
- 	SendTemp
  	}
   
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
-	IF ($IsSystem) {
-	$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"}
-	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
+	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"
+ 	$ResultsLog=@{"$env:computername-$env:username"="$(gc $Log)"}
+ 	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
-}
+ 
+IF (!($IsSystem))
+	{
+ 	SendTemp
+  	}
 #EOF
