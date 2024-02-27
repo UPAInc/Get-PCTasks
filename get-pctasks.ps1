@@ -356,7 +356,7 @@ IF (!($IsSystem))
 Stop-Transcript
 if (!($local)) {
 	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"
- 	$ResultsLog=@{"$env:computername-$env:username"="$(gc $Log)"
+ 	$ResultsLog=@{"$env:computername-$env:username"="$(gc $Log)"}
  	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
