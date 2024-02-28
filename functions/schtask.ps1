@@ -1,7 +1,8 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
+$script:elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
-IF ($IsSystem) {
+IF ($elevated) {
 $TaskXML1=".\temp\get-pctasks.xml"
 $TaskXML2=".\temp\get-pctasks-assist.xml"
 
