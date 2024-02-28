@@ -16,6 +16,7 @@ function RunTask($calltask) {
 					switch ($function) {
      						get-pwdfyi {& $function}
 						notify {& $function $options}
+      						LOCKDESKTOP {& $function}
 						RunAsUser {& RUN -type $action -run $options}
 						SCREENGRAB {& $function -alt $action -rectime $options}
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
@@ -27,7 +28,7 @@ function RunTask($calltask) {
 	switch ($function) {
 		COMBO {& $options}
 		ECHOTEST {& $function $CmdList}
-		LOCKDESKTOP {& $function}
+		LOCKDESKTOP {RTUserCheck}
 		DOWNLOAD {& $function -type $action -url $options}
   		get-pwdfyi {RTUserCheck}
 		RUN {& $function -type $action -run $options}
