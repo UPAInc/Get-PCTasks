@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.9
+.VERSION 2.9.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -130,6 +130,7 @@ For more information, please refer to <http://unlicense.org/>
    		Copy cfg from local fs if avil.
      	202402272205 - 2.9
       		Found ps uses netbios for env:computername and name gets truncated; changed to hostname command.
+		2.9.1 - Too many logs being uploaded, changed to system only. Testing pc-info save to web again.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -357,11 +358,14 @@ IF (!($IsSystem))
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
+	IF ($IsSystem)
+	{
 	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"
- 	$ResultsLog=@{"$pcname-$env:username"="$(gc $Log)"}
+ 	$ResultsLog=@{"$pcname"="$(gc $Log)"}
  	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
+ }
  
 IF (!($IsSystem))
 	{
