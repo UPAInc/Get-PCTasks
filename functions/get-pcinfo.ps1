@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.12
+.VERSION 1.13
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -8,7 +8,7 @@ $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsS
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc=$pcname
 $file=".\$script.csv"
-$SaveToWeb=$false
+$SaveToWeb=$true
 $UpdateCRM=$True
 $Header = @{
 	"Content-Type" = "application/json"
@@ -34,20 +34,20 @@ param(
 )
 
 	if ($serial) {
-		$Header = @{
+		$SHeader = @{
 			"Content-Type" = "application/json"
-			'Serial_Number'="$serial"
+			'serial_number'="$serial"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $assetSerialURI -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetSerialURI -Headers $SHeader).content | ConvertFrom-Json).id
 		return $crmID
 	}
 	
 	if ($Name) {
-		$Header = @{
+		$NHeader = @{
 			"Content-Type" = "application/json"
 			'Name'="$name"
 			}
-		$crmID=((Invoke-WebRequest -Method POST -Uri $assetNameURI -Headers $Header).content | ConvertFrom-Json).id
+		$crmID=((Invoke-WebRequest -Method POST -Uri $assetNameURI -Headers $NHeader).content | ConvertFrom-Json).id
 		return $crmID
 	}
 }
@@ -149,7 +149,7 @@ if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 	#$htarray=@{"$($raw.name)"="$pcattribs"}
 $body1=@"
 {
-"$pc)":[$($pcattribs)]
+"$($pc)":[$($pcattribs)]
 }
 "@
 
@@ -161,21 +161,22 @@ invoke-webrequest -method POST -uri $AssetWebURI -headers $header -body $body1 |
 		#Attempts to find CRM record by Serial number then hostname if not found. If no ID returns, create a new record.
 		$body=$newinfo | ConvertTo-Json #Convert inventory to web json format
 		#$body | out-file .\crm.json -force
-		"$($newinfo.Serial_Number)"
-		$crmID=get-crmid -Serial $($newinfo.Serial_Number)
-		"$crmID"
-		IF (!($crmID)) {$crmID=get-crmid -Name $pc}
+		"Serial: $($newinfo.Serial)"
+		$crmID=get-crmid -Serial $($newinfo.Serial)
+		"Get CRM ID by serial: $crmID"
+		IF (!($crmID)) {$crmID=get-crmid -Name $pc; "Get CRM ID by name: $crmID"}
+  		
 		IF ($crmID) {
 			
-			$Header = @{
+			$CHeader = @{
 				"Content-Type" = "application/json"
 				'id'="$crmID"
 			}
 			"Updating CRM record..."
-			Invoke-WebRequest -Method POST -Uri $UpdateCRMURI -Headers $Header -body $body | select StatusCode #Update CRM record
+			Invoke-WebRequest -Method POST -Uri $UpdateCRMURI -Headers $CHeader -body $body | select StatusCode #Update CRM record
 		} ELSE {
 			"No CRM ID found, creating record..."
-			Invoke-WebRequest -Method POST -Uri $NewCRMURI -Headers $Header -body $body | select StatusCode #Create new CRM record
+			Invoke-WebRequest -Method POST -Uri $NewCRMURI -Headers $CHeader -body $body | select StatusCode #Create new CRM record
 			}
 	}
 	} ELSE {"PC info did not change"}
