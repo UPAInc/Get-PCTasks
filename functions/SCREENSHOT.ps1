@@ -11,7 +11,7 @@ function SCREENSHOT($startat,$endat,$freq) {
 	while ($startat -lt $endat) {
 		"Running" | out-file $ssactive -force
 	$rand=get-random -Minimum 1000 -Maximum 9999
-	$snap="$TempDir\$env:computername-$rand-$filenameDate.png"
+	$snap="$TempDir\$pcname-$rand-$filenameDate.png"
 	Add-Type -AssemblyName System.Windows.Forms,System.Drawing
 	$screens = [Windows.Forms.Screen]::AllScreens
 	$top    = ($screens.Bounds.Top    | Measure-Object -Minimum).Minimum
