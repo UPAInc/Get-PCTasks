@@ -6,7 +6,7 @@
 #>
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
-$pc="$env:computername"
+$pc=$pcname
 $file=".\$script.csv"
 $SaveToWeb=$false
 $UpdateCRM=$True
