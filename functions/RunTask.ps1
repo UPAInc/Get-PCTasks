@@ -17,6 +17,10 @@ function RunTask($calltask) {
      						get-pwdfyi {& $function}
 						notify {& $function $options}
       						LOCKDESKTOP {& $function}
+	    					openweb {
+	  						if ($action) {$browser=$action} ELSE {$browser=$edge}
+	 						& $function -url $options -browser $browser
+							}
 						RunAsUser {& RUN -type $action -run $options}
 						SCREENGRAB {& $function -alt $action -rectime $options}
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
@@ -31,6 +35,7 @@ function RunTask($calltask) {
 		LOCKDESKTOP {RTUserCheck}
 		DOWNLOAD {& $function -type $action -url $options}
   		get-pwdfyi {RTUserCheck}
+    		openweb {RTUserCheck}
 		RUN {& $function -type $action -run $options}
 		RunAsUser {RTUserCheck}
 		DISABLEAD {& $function -mode $action -reboot $options}

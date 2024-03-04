@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 1.13
+.VERSION 1.14
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -7,7 +7,7 @@
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 $pc=$pcname
-$file=".\$script.csv"
+$pcinfofile=".\pcinfo.csv"
 $SaveToWeb=$false
 $UpdateCRM=$True
 $Header = @{
@@ -78,8 +78,9 @@ function pcinfo() {
 	#Networking
 	#bug in powershell 5.1 pipeline, updated to wmi.
 	#$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
-	$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
-	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
+	#$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
+	$localIP=(((Get-WmiObject -Class Win32_NetworkAdapterConfiguration).ipaddress | ? {$_ -notlike '*:*'} | out-string).split() -join ";").replace(';;',';') | trim-length 254
+ 	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
 	$PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
 	
 	#Storage
@@ -131,7 +132,7 @@ return ,$ht
 function get-pcinfo() {
 $now="$(get-date -Format yyyyMMdd)"
 $newinfo=pcinfo
-if (test-path $file) {$previousinfo=import-csv $file} ELSE {$previousinfo=""; $newinfo | export-csv $file -notypeinformation -Force}
+if (test-path $pcinfofile) {$previousinfo=import-csv $pcinfofile} ELSE {$previousinfo=""; $newinfo | export-csv $pcinfofile -notypeinformation -Force}
 $infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property 'Local IP'
 $infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
 $infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
@@ -141,7 +142,7 @@ $infochanged2
 $infochanged3
 #$newinfo
 if ($infochanged1 -or $infochanged2 -or $infochanged3) {
-	$newinfo | export-csv $file -notypeinformation -Force
+	$newinfo | export-csv $pcinfofile -notypeinformation -Force
 	
 	IF ($SaveToWeb) {
 	$pcattribs=(($newinfo | gm -membertype NoteProperty  | select -ExpandProperty definition).replace('string ','') | convertto-json | out-string).Replace('[','').Replace(']','').Replace("`r`n",'').replace('    ','').Trim()
