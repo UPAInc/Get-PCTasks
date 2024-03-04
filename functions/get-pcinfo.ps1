@@ -132,7 +132,7 @@ return ,$ht
 function get-pcinfo() {
 $now="$(get-date -Format yyyyMMdd)"
 $newinfo=pcinfo
-if (test-path $pcinfofile) {$previousinfo=import-csv $file} ELSE {$previousinfo=""; $newinfo | export-csv $pcinfofile -notypeinformation -Force}
+if (test-path $pcinfofile) {$previousinfo=import-csv $pcinfofile} ELSE {$previousinfo=""; $newinfo | export-csv $pcinfofile -notypeinformation -Force}
 $infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property 'Local IP'
 $infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
 $infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
