@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.10
+.VERSION 2.10.1
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -134,6 +134,9 @@ For more information, please refer to <http://unlicense.org/>
 	202403041528 - 2.10
 		Added OpenWeb function to open webpages.
 		Added Broacast task option to run on all PCs.
+	202403041628 - 2.10.1
+		Inserted command to clean up ps jobs.
+		Added TaskBus var to help stop some commands from running multiple times.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -262,6 +265,7 @@ $head = @{
 	'Content-Type'='application/json'
 	'name'=$pcname
 	}
+$TaskBus=$false
 
 #IE Fix
 IF ($IsSystem) {
@@ -340,8 +344,8 @@ IF ($local) {
 				
 				#Execution decision tree
 				if ($time -gt $end) {remove-item $task -force; "Deleting expired tasks: $task"}
-				if ($time -gt $start -AND $time -lt $end) {RunTask; "Start date and end date matched: $task"}
-				elseif (!($start)) {RunTask; "No starting date"}
+				if ($time -gt $start -AND $time -lt $end) {RunTask; "Start date and end date matched: $task"; $TaskBus=$true}
+				elseif (!($start)) {RunTask; "No starting date"; $TaskBus=$true}
 				#elseif ($CmdList[3] -ge $date ) {RunTask; "Start date matched"}
 				remove-variable CmdList, time
 			} #end foreach
@@ -352,7 +356,9 @@ IF ($local) {
 IF ($IsSystem)
 	{
 	"Checking pc info..."; get-pcinfo
- 	"Check password expiration..."; RunTask -calltask "get-pwdfyi" #starts user mode
+ 	if (!($TaskBus)) {"Check password expiration..."; RunTask -calltask "get-pwdfyi"} #starts user mode
+	#Cleanup job history
+	Get-Job | ? {$_.state -eq 'Completed'} | Remove-Job
 	}
 
 IF (!($IsSystem))
