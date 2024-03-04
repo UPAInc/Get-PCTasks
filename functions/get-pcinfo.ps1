@@ -78,8 +78,9 @@ function pcinfo() {
 	#Networking
 	#bug in powershell 5.1 pipeline, updated to wmi.
 	#$localIP=(Get-NetIPAddress -AddressFamily IPV4 | ? {$_.InterfaceAlias -NotLike "Loopback*"} | select InterfaceAlias,PrefixOrigin,IPAddress | convertto-csv -NoTypeInformation | select -skip 1).replace('"','') -join ";" | trim-length 250
-	$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
-	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
+	#$localIP=(Get-WmiObject -Class Win32_NetworkAdapterConfiguration | ? {$_.ipaddress -notlike ''} | foreach ipaddress).trim() -join ";"
+	$localIP=(((Get-WmiObject -Class Win32_NetworkAdapterConfiguration).ipaddress | ? {$_ -notlike '*:*'} | out-string).split() -join ";").replace(';;',';') | trim-length 254
+ 	$mac=(Get-WmiObject win32_networkadapterconfiguration | ? {$_.macaddress -notlike ''} | select Description,macaddress | convertto-csv -NoTypeInformation | Select-Object -Skip 1).replace('"',"") -join ";" | trim-length 250
 	$PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
 	
 	#Storage
