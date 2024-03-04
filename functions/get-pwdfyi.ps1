@@ -4,6 +4,7 @@ function get-pwdfyi(){
 $IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $dc=("$env:LOGONSERVER" + '.' +"$env:USERDNSDOMAIN").Replace('\\','')
 $netcheck = Test-Connection $dc -Quiet -Count 2 #Check to see if a domain controller is avail.
+if ($netcheck) {
 
 #Check for notify mod
 $script:chknotify=Get-Module | ? {$_.name -eq 'notify'} | select name
@@ -42,10 +43,9 @@ Test your new password by locking and unlocking your Desktop.
 "Notify by: $noticedate"
 
 if (!($IsSystem)) {
-		if ($netcheck) {
-			if ($today -le $expire -AND $today -ge $noticedate) {notify $MessageBody} ELSE {"No notice..."}
-		} ELSE {"Can't contact $dc."}
-}
+	if ($today -le $expire -AND $today -ge $noticedate) {notify $MessageBody} ELSE {"No notice..."}
+	}
+} ELSE {"Can't contact $dc."}
 return
 }
 
