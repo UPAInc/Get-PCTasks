@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.9.1
+.VERSION 2.10
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -131,6 +131,9 @@ For more information, please refer to <http://unlicense.org/>
      	202402272205 - 2.9
       		Found ps uses netbios for env:computername and name gets truncated; changed to hostname command.
 		2.9.1 - Too many logs being uploaded, changed to system only. Testing pc-info save to web again.
+	202403041528 - 2.10
+		Added OpenWeb function to open webpages.
+		Added Broacast task option to run on all PCs.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -307,16 +310,18 @@ IF ($local) {
 
 		#Get tasks saved on disk
 		$taskbooks=get-childitem $TaskDir\*.task | % fullname
+		$bcasttaskbooks=get-childitem $TaskDir\broadcast\*.task | % fullname
 		"$taskbooks" #print for log
-		if ($taskbooks) {
+		"$bcasttaskbooks"
+		if ($taskbooks -OR $bcasttaskbooks) {
 			$tasks=@()
 			foreach ($file in $taskbooks) {
-				
 				$hash1=(Get-FileHash -Algorithm sha1 $file).hash
 				if ($WebTask -eq $hash1 -AND $file -ne $runbook) {IF ($IsSystem) {remove-item $file -force; "Dup hash found, deleting $file"}} ELSE {
 					$tasks+=$file
-				} #end if webtask
+					} #end if webtask
 			} #end foreach
+		if ($bcasttaskbooks) {$tasks+=$bcasttaskbooks}
 		} ELSE {remove-variable tasks -ErrorAction SilentlyContinue} 
 		
 
