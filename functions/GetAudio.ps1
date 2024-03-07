@@ -1,7 +1,7 @@
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 
 function GetAudio($rectime,$startat,$endat) {
-if (!($rectime)) {$rectime="00:01:00"} #Incremental file duration
+if (!($rectime)) {$rectime="00:10:00"} #Incremental file duration
 if (!($tempdir)) {$tempdir="$env:temp" + "\"} #save folder
 if (!($start)) {$start=[int64]$startat=get-date -Format yyyyMMddHHmm} #default start time
 if (!($end)) {$end=(get-date).AddHours(1) | get-date -Format yyyyMMddHHmm} #default to an hour runtime
