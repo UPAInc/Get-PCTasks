@@ -14,10 +14,10 @@ function RunTask($calltask) {
 				& c:\windows\system32\schtasks.exe /run /i /tn "get-pctasks-assist"
 				} ELSE {
 					switch ($function) {
-     						get-pwdfyi {& $function}
+     					get-pwdfyi {& $function}
 						notify {& $function $options}
-      						LOCKDESKTOP {& $function}
-	    					openweb {
+      					LOCKDESKTOP {& $function}
+	    				openweb {
 	  						if ($action) {$browser=$action} ELSE {$browser=$edge}
 	 						& $function -url $options -browser $browser
 							}
@@ -26,6 +26,7 @@ function RunTask($calltask) {
 						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
 						SendTemp {& $function -type $action}
 						} #End Switch
+					"RT is executing $function $action $options"
 					} #End ELSE
 	} #End RTUserCheck
 		
