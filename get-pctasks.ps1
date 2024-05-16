@@ -291,6 +291,7 @@ IF ($IsSystem) {
 winrm quickconfig -q -force
 
 #Check for updates
+if ($hour -gt 12 -and $hour -lt 16) {choco upgrade chocolatey git ffmpeg -y}
 git pull
 }
 
