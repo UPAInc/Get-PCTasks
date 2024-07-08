@@ -1,5 +1,14 @@
+<#PSScriptInfo
+.VERSION 2.0.2
+.AUTHOR Eric Duncan
+.COMPANYNAME University Physicians' Association (UPA) Inc.
+.COPYRIGHT 2024
+#>
 
 <# Vars #>
+#Temp var for migration
+$FlowUri="https://flow.zoho.com/856508634/flow/webhook/incoming?zapikey=1001.52f88f3f448f5ea9373e8cc92f2cbee7.3e9d7aad966a7f5856075426e28dc125&isdebug=false"
+$pcinfofile=".\pcinfo.csv"
 $Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
 $script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'') #Get the name of this script, trim removes the last s in the name.
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -19,29 +28,32 @@ param (
 }
 
 <# Main #>
-
+function get-pcinfo() {
 $pcinfo=Get-ComputerInfo
 $user=Get-CimInstance -ClassName Win32_LoggedOnUser |? {$_.Antecedent -match "$env:USERDOMAIN"}| Select Antecedent -Unique | %{"{1}\{0}" -f $_.Antecedent.ToString().Split('"')[1],$_.Antecedent.ToString().Split('"')[3]}
 
 #Network
 $pcnet=foreach ($nic in ($pcinfo.CsNetworkAdapters | where {$_.ipaddresses -ne $NULL})) {
 	$netinfo=($nic | select * -ExcludeProperty IPAddresses).psobject.properties.value -join ","
-	$netip=($nic | foreach ipaddresses) -join ","
+	$netip=($nic | foreach ipaddresses)[0] -join ","
 	$netmac=Get-NetAdapter | ? {$_.name -eq $nic.ConnectionID} | foreach MacAddress
-	$mac+="$($nic.ConnectionID) ${netmac};" | trim-length 250 -ErrorAction SilentlyContinue
-	$netjoin="${netinfo},${netip};" | trim-length 250 -ErrorAction SilentlyContinue
+	$mac+="$($nic.ConnectionID) ${netmac};" 
+	$netjoin+="${netinfo},${netip};"
 	$netjoin
 }
+$pcnet=$pcnet | trim-length 254 -ErrorAction SilentlyContinue
 $PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
-if (Get-Command get-geoloc -ErrorAction SilentlyContinue) {$gep=get-geoloc}
+#$findmy=get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" | foreach value
+#$findmy=if ($findmy -eq "1") {"Enabled"} else {"Disabled"}
+if (Get-Command get-geoloc -ErrorAction SilentlyContinue) {$geo=get-geoloc} else {import-module .\get-geoloc.ps1; $geo=get-geoloc}
+#$geo="Find My Device: ${findmy};" + "$geo"
 
 #Hardware
 $memSlots=(Get-CimInstance -ClassName Win32_PhysicalMemoryArray).MemoryDevices
 $tpm=(Get-CimInstance -Namespace 'root/cimv2/Security/MicrosoftTpm' -Class 'Win32_Tpm').SpecVersion
 if ($tpm) {$tpm=$tpm.Substring(0,3)} ELSE {$tpm="N/A"}
-#$biostag=Get-CimInstance -ClassName Win32_SystemEnclosure | Select-Object -ExpandProperty SMBIOSAssetTag
 $biostag=(Get-CimInstance -ClassName Win32_SystemEnclosure | foreach SMBIOSAssetTag ).trim()
-if (!($biostag)) {$biostag="N/A"}
+if (!($biostag)) {$biostag="NA"}
 
 #Storage
 $Bitlocker=(Get-BitLockerVolume | ft MountPoint,VolumeStatus -HideTableHeaders |out-string).trim().Replace('  ','').Replace("`r`n",',').Trim(",")
@@ -70,10 +82,10 @@ $ht=[pscustomobject]@{
 'Make'="$($pcinfo.CsManufacturer)"
 'Model'="$($pcinfo.CSModel)"
 'Serial'="$($pcinfo.BiosSeralNumber)"
-'BIOS Tag'="$($biostag)"
+'BIOS Tag'="$biostag"
 'CPU Name'="$(($pcinfo.CsProcessors[0]).name)"
 'CPU Description'="$(($pcinfo.CsProcessors[0]).description)"
-'CPU Cores'="$($pcinfo.CsNumberOfProcessors) Cores"
+'CPU Cores'="$($pcinfo[0].CsProcessors.NumberOfCores) Cores"
 'Memory Size'="$([int32]($pcinfo.OsTotalVisibleMemorySize / 1000000)) GB"
 'Memory Slots'="$($MemSlots) Slots"
 'TPM Version'="$tpm"
@@ -98,5 +110,22 @@ $ht=[pscustomobject]@{
 $body=$ht | convertto-json
 #$body
 
-invoke-webrequest -method POST -uri $FlowUri -headers $header -body $body
+$now="$(get-date -Format yyyyMMdd)"
+$newinfo=$ht
+if (test-path $pcinfofile) {$previousinfo=import-csv $pcinfofile} ELSE {$previousinfo=""; $newinfo | export-csv $pcinfofile -notypeinformation -Force}
+$infochanged1=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property 'Local IP'
+$infochanged2=Compare-Object -ReferenceObject $previousinfo -DifferenceObject $newinfo -Property User
+$infochanged3=if ($newinfo.last -lt $now) {$true} ELSE {$false}
+"Checking for pc info changes..."
+$infochanged1
+$infochanged2
+$infochanged3
 
+if ($infochanged1 -or $infochanged2 -or $infochanged3) {
+	$newinfo | export-csv $pcinfofile -notypeinformation -Force
+	invoke-webrequest -method POST -uri $FlowUri -headers $header -body $body | select StatusCode
+	} ELSE {"PC info did not change"}
+
+}
+
+write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black
