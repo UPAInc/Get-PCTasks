@@ -10,5 +10,6 @@
 	"NewCRMURI":"https://",
 	"AssetWebURI":"https://",
 	"RemoteFS": "FileServerName",
-	"RemoteFSShare": 'FileServerShare'
+	"RemoteFSShare": 'FileServerShare',
+	"FlowUri":"https://"
 }
