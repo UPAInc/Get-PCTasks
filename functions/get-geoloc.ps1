@@ -1,3 +1,15 @@
+<#PSScriptInfo
+.VERSION 1.4
+.AUTHOR Eric Duncan
+.COMPANYNAME University Physicians' Association (UPA) Inc.
+.COPYRIGHT 2024
+#>
+
+<# Vars #>
+$Script:IsSystem = [System.Security.Principal.WindowsIdentity]::GetCurrent().IsSystem #Check if running account is system
+$script:scriptname=($MyInvocation.MyCommand.Name).replace(".ps1",'')
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 function Get-CoordByIP() {
 # Define the API endpoint
 $url = "http://ipinfo.io/json"
@@ -55,37 +67,42 @@ if ($lat -and $long) {
     	# Initialize variables to store city and state
     	if ($components.city) {$city = $components.city} ELSE {$city = $components._normalized_city}
 	    # Display the city and state
-   	 Write-Output "Lat: $lat Long: $long - $($components.house_number) $($components.road), $($city) ($($components.hamlet)) $($components.state) $($components.postcode) $($components.country) $($components.continent)"
-		} else {Write-Output "Failed. Status: $($response.status.message)"
+	Write-Output "Find my Device: ${findmy}; Lat: $lat Long: ${long}; $($components.house_number) $($components.road), $($city) $($components.state) $($components.postcode) $($components.country) $($components.continent)"
+		} else {Write-Output "Find my Device: ${findmy}; Failed. Status: $($response.status.message)"
 	}
 
-} else {Write-Output "No coordinates"}
+} else {Write-Output "Find my Device: ${findmy}; No coordinates"}
 }
 
 <# Main #>
-$findmy=get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" | foreach value
+$findmy=get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" -ErrorAction SilentlyContinue | foreach value
 $ifsvc=Get-Service lfsvc | foreach status
 
 if (!($findmy)) {
-Remove-ItemProperty -Path "HKLM:SYSTEM\CurrentControlSet\Services\lfsvc\TriggerInfo\" -Name "3"
+Remove-ItemProperty -Path "HKLM:SYSTEM\CurrentControlSet\Services\lfsvc\TriggerInfo\" -Name "3" -ErrorAction SilentlyContinue
 
-set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "LocationSyncEnabled" -value 1
-set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" -value 1
+New-Item -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -Force
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" -value 1 -Type string -Force
+New-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "LocationSyncEnabled" -value 1 -type dword -force
 
 set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Value "Allow" -Name "Value"
 set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\activity" -Value "Allow" -Name "Value"
 
 set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\lfsvc\Components\General\Settings" -name "EnableActiveCollection" -value "1"
 
-set-ItemProperty -Path "HKLM:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableLocation" -value "1"
-set-ItemProperty -Path "HKCU:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableLocation" -value "1"
+set-ItemProperty -Path "HKLM:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableLocation" -value "0"
+set-ItemProperty -Path "HKCU:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableLocation" -value "0"
+set-ItemProperty -Path "HKLM:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableLocationScripting" -value "0"
+set-ItemProperty -Path "HKLM:\\SOFTWARE\Policies\Microsoft\Windows\LocationAndSensors" -name "DisableWindowsLocationProvider" -value "0"
 
 # Restart the Location service
 Restart-Service -Name lfsvc -Force
 
 # Notify the system of the changes
 Get-Service lfsvc | Start-Service
-}
+
+$findmy="Set to Enabled"
+} else {$findmy="Enabled"}
 
 if ($ifsvc -ne "Running") {
 Set-Service -Name "lfsvc" -StartupType Automatic
@@ -99,4 +116,6 @@ get-citystate -lat $gps.Latitude -long $gps.Longitude
 } else {Get-CoordByIP}
 }
 
-get-geoloc
+#get-geoloc
+
+write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black
