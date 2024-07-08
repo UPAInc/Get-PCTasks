@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.10.1
+.VERSION 2.10.2
 .GUID 7834b86b-9448-46d0-8574-9296a70b1b98
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
@@ -137,6 +137,8 @@ For more information, please refer to <http://unlicense.org/>
 	202403041628 - 2.10.1
 		Inserted command to clean up ps jobs.
 		Added TaskBus var to help stop some commands from running multiple times.
+  	202407081418 - 2.10.2
+   		Force cfg update if connected.
 		
 	TODO:
 		Add http upload function for screen grab/shots.
@@ -292,6 +294,7 @@ winrm quickconfig -q -force
 
 #Check for updates
 if ($hour -gt 12 -and $hour -lt 16) {choco upgrade chocolatey git ffmpeg -y}
+if ($GitBranch -eq "main" -AND (test-path "\\$RemoteFS\$RemoteFSShare\cfg.json")) {copy "\\$RemoteFS\$RemoteFSShare\cfg.json" .\ -force} #get latest cfg file
 git pull
 }
 
