@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.0.2
+.VERSION 2.0.3
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -31,6 +31,7 @@ param (
 function get-pcinfo() {
 $pcinfo=Get-ComputerInfo
 $user=Get-CimInstance -ClassName Win32_LoggedOnUser |? {$_.Antecedent -match "$env:USERDOMAIN"}| Select Antecedent -Unique | %{"{1}\{0}" -f $_.Antecedent.ToString().Split('"')[1],$_.Antecedent.ToString().Split('"')[3]}
+$BootTime=Get-CimInstance -ClassName Win32_OperatingSystem | foreach LastBootUpTime
 
 #Network
 $pcnet=foreach ($nic in ($pcinfo.CsNetworkAdapters | where {$_.ipaddresses -ne $NULL})) {
@@ -97,7 +98,7 @@ $ht=[pscustomobject]@{
 'Disk C'="$CVol"
 'User'="$user"
 'Local Admins'="$admins"
-'Note'="$($pcinfo.CsPCSystemType) Computer BIOS Version: $($pcinfo.BiosBIOSVersion)"
+'Note'="$($pcinfo.CsPCSystemType) Computer BIOS Version: $($pcinfo.BiosBIOSVersion) Last Boot: $BootTime"
 'Software'="$apps"
 'Updates'="$updates"
 'Last Updated'="$(get-date)"
