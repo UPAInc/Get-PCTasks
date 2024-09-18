@@ -1,7 +1,8 @@
 <#
-.VERSION 2
+.VERSION 2.1
 .CHANGES
 	Added job to make dialog box async.
+ 	Wront toast text var, updated.
 #>
 
 $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
@@ -9,7 +10,7 @@ $script:name=($MyInvocation.MyCommand.Name).Trim('.ps1')
 function notifyBT($action) {
 	import-module BurntToast -force
 	$toastParams = @{
-    Text = "$options"
+    Text = "$action"
     Header = (New-BTHeader -Id 1 -Title "Notification from UPA Support")
 	Applogo = "c:\programdata\$org\get-pctasks\bin\logosmall.png"
 	SnoozeAndDismiss = $true
