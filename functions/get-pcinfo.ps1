@@ -1,5 +1,5 @@
 <#PSScriptInfo
-.VERSION 2.0.3
+.VERSION 2.0.4
 .AUTHOR Eric Duncan
 .COMPANYNAME University Physicians' Association (UPA) Inc.
 .COPYRIGHT 2024
@@ -105,6 +105,7 @@ $ht=[pscustomobject]@{
 'Last'="$(get-date -Format yyyyMMdd)"
 'OS'="$($pcinfo.OsName) $($pcinfo.OSDisplayVersion) $($pcinfo.OsArchitecture)"
 'Geo'="$geo"
+'Managed'="Entra ID: $($DomainStatus.AzureAdJoined), AD: $($DomainStatus.DomainJoined)"
 } #End ht
 
 #$ht
@@ -130,3 +131,4 @@ if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 }
 
 write-host "$scriptname loaded..." -ForegroundColor yellow -BackgroundColor black
+
