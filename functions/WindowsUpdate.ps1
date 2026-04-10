@@ -15,8 +15,14 @@ function WindowsUpdate() {
 		Install-Module $module -force
 	}
 	import-module $module -force
-	Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreUserInput -AutoReboot -verbose *>&1 | Out-File $LogDir\PSWindowsUpdate.log
+	Get-WindowsUpdate -MicrosoftUpdate -AcceptAll -Install -IgnoreUserInput -Category "Drivers","Critical Updates","Security Updates" -IgnoreReboot -verbose *>&1 | Out-File $LogDir\PSWindowsUpdate.log
 }
 
+$wuwed=get-date | foreach DayOfWeek
+$wuhour=get-date | foreach Hour
+
+if ($wuwed -eq 'Wednesday') {
+	if ($wuhour -ge 12 -and $hour -le 17) {WindowsUpdate}
+	}
 
 write-host "$name loaded..." -ForegroundColor yellow -BackgroundColor black
