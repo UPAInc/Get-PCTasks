@@ -378,7 +378,7 @@ if (!($local)) {
 	#$ResultsLog=@{"$env:computername"="$(gc $LogDir\get-pctasks.log)"
  	$ResultsLog=@{"$pcname"="$(gc $Log)"}
  	#$ResultsLog=@{"$env:computername"="$filenameDate $function $start $end"}
-	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI | Select StatusCode
+	Invoke-WebRequest -Method POST -Headers $head -Body $ResultsLog -Uri $ResultsURI -UseBasicParsing | Select StatusCode
 	}
  }
  
