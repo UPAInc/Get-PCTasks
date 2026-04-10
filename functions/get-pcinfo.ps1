@@ -125,7 +125,7 @@ $infochanged3
 
 if ($infochanged1 -or $infochanged2 -or $infochanged3) {
 	$newinfo | export-csv $pcinfofile -notypeinformation -Force
-	invoke-webrequest -method POST -uri $FlowUri -headers $header -body $body | select StatusCode
+	invoke-webrequest -method POST -uri $FlowUri -headers $header -body $body -UseBasicParsing | select StatusCode
 	} ELSE {"PC info did not change"}
 
 }
