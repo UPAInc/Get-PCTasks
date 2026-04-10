@@ -43,7 +43,7 @@ $pcnet=foreach ($nic in ($pcinfo.CsNetworkAdapters | where {$_.ipaddresses -ne $
 	$netjoin
 }
 $pcnet=$pcnet | trim-length 254 -ErrorAction SilentlyContinue
-$PublicIP=(Invoke-WebRequest ifconfig.me/ip).Content.Trim()
+$PublicIP=(Invoke-WebRequest ifconfig.me/ip -UseBasicParsing).Content.Trim()
 #$findmy=get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Settings\FindMyDevice" -name "Value" | foreach value
 #$findmy=if ($findmy -eq "1") {"Enabled"} else {"Disabled"}
 if (Get-Command get-geoloc -ErrorAction SilentlyContinue) {$geo=get-geoloc} else {import-module .\get-geoloc.ps1; $geo=get-geoloc}
