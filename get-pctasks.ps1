@@ -368,6 +368,7 @@ IF ($IsSystem)
 IF (!($IsSystem))
 	{
 	get-pwdfyi
+	try {mapod} catch {}
  	}
   
 <# Post Main Items #>
